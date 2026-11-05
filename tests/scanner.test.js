@@ -4,7 +4,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JSDOM } from 'jsdom';
+import { performance } from 'node:perf_hooks';
 import { PageScanner } from '../src/content/scanner.js';
+import {
+  mightContainPrice,
+  EXPLICIT_SYMBOL_MAP,
+  AMBIGUOUS_SYMBOL_KEYS,
+  ISO_CODES
+} from '../src/shared/parser.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixturesDir = path.join(__dirname, 'fixtures');
@@ -514,4 +521,73 @@ test('scanner: scanCandidates performs read-only candidate counting without muta
   assert.equal(scanner.convertedCount, 0, 'scanner.convertedCount must remain 0');
   assert.equal(scanner.isConverted, false, 'scanner.isConverted must remain false');
 });
+
+test('scanner & parser: mightContainPrice covers 100% of ISO codes and currency symbols while rejecting plain numeric text', () => {
+  for (const sym of Object.keys(EXPLICIT_SYMBOL_MAP)) {
+    assert.equal(mightContainPrice(`${sym} 99.50`), true, `Explicit symbol ${sym} must pass mightContainPrice`);
+  }
+  for (const sym of AMBIGUOUS_SYMBOL_KEYS) {
+    if (sym === 'R') continue; // Bare 'R' is not a standalone price token in extractPrices
+    assert.equal(mightContainPrice(`${sym} 99.50`), true, `Ambiguous symbol ${sym} must pass mightContainPrice`);
+  }
+  for (const code of ISO_CODES) {
+    assert.equal(mightContainPrice(`99.50 ${code}`), true, `ISO code ${code} must pass mightContainPrice`);
+  }
+
+  // Plain numeric strings without currency markers must return false
+  assert.equal(mightContainPrice('Post #12'), false);
+  assert.equal(mightContainPrice('15 mins ago'), false);
+  assert.equal(mightContainPrice('2026-11-05'), false);
+  assert.equal(mightContainPrice('100%'), false);
+  assert.equal(mightContainPrice('version 2.4.1 in section 8'), false);
+});
+
+test('scanner: all 13 HTML fixtures convert and revert byte-for-byte cleanly', () => {
+  const fixtureFiles = fs.readdirSync(fixturesDir).filter(f => f.endsWith('.html'));
+  assert.ok(fixtureFiles.length >= 13, 'Must test all HTML fixtures');
+
+  for (const file of fixtureFiles) {
+    const html = loadFixture(file);
+    const dom = new JSDOM(html);
+    const doc = dom.window.document;
+    const originalHtml = doc.body.innerHTML;
+
+    const scanner = new PageScanner({
+      doc,
+      targetCurrency: 'NGN',
+      ratesTable: mockRates,
+      displayMode: 'replace'
+    });
+
+    const candidates = scanner.scanCandidates(doc.body);
+    assert.equal(doc.body.innerHTML, originalHtml, `scanCandidates must not mutate ${file}`);
+
+    const convertedCount = scanner.convert();
+    assert.equal(convertedCount > 0, candidates.count > 0, `scanCandidates presence must match convert() on ${file}`);
+    assert.ok(candidates.count >= convertedCount, `scanCandidates price count (${candidates.count}) must be >= converted node count (${convertedCount}) on ${file}`);
+
+    scanner.revert();
+    assert.equal(doc.body.innerHTML, originalHtml, `revert() must restore byte-for-byte HTML on ${file}`);
+  }
+});
+
+test('scanner: large 3,200-element non-shopping DOM scans quickly without layout/selector thrashing', () => {
+  let html = '<!DOCTYPE html><html><body><div id="app">';
+  for (let i = 0; i < 400; i++) {
+    html += `<div class="card"><div class="header"><span>Post #${i}</span><span>${i * 3} mins ago</span></div><p>Some discussion text with numbers like 2026 and 100% and version 2.4.1 in section ${i}.</p><div class="footer"><span>${i * 12} comments</span><span>Share</span></div></div>`;
+  }
+  html += '</div></body></html>';
+
+  const dom = new JSDOM(html, { url: 'https://example.com/' });
+  const doc = dom.window.document;
+  const scanner = new PageScanner({ doc, targetCurrency: 'USD', ratesTable: mockRates });
+
+  const t0 = performance.now();
+  const res = scanner.scanCandidates(doc.body);
+  const elapsedMs = performance.now() - t0;
+
+  assert.equal(res.count, 0);
+  assert.ok(elapsedMs < 220, `Expected 3,204-element scanCandidates to complete under 220ms in JSDOM, took ${elapsedMs.toFixed(2)}ms`);
+});
+
 

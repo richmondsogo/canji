@@ -66,6 +66,37 @@ export const AMBIGUOUS_SYMBOL_KEYS = ['$', '¥', 'kr', '£', 'Rs', 'Rs.', '₨',
 // Common ISO 4217 currency codes
 export const ISO_CODES = Object.keys(CURRENCIES_DATA);
 
+// Pre-sorted explicit symbol keys (longest first) and pre-compiled ISO word-boundary regexes
+export const EXPLICIT_SYMBOL_KEYS = Object.keys(EXPLICIT_SYMBOL_MAP).sort((a, b) => b.length - a.length);
+const ISO_CODE_REGEX_ENTRIES = ISO_CODES.map((code) => [code, new RegExp(`\\b${code}\\b`)]);
+
+const QUICK_CURRENCY_SYMBOL_RE = /[$€£¥₦₹₩₺₽₴₪฿₫₱৳₵₡₲₭₮₸₨]|د\.إ|ر\.س|ر\.ق|د\.ب|ر\.ع\.|د\.أ|د\.ك|(?:^|[^A-Za-z])(?:zł|zl|Kč|Kc|Ft|RM|Rp|Fr\.|SFr|GHc|KSh|Ksh|kr|Rs\.?)(?![A-Za-z])/i;
+const CURRENCY_CODE_TOKEN_RE = /\b([A-Za-z]{3,5})\b/g;
+
+/**
+ * Fast check that returns true only if text contains a known currency symbol/prefix
+ * or a valid ISO/crypto currency code.
+ */
+export function hasCurrencyMarker(text) {
+  if (!text || typeof text !== 'string') return false;
+  if (QUICK_CURRENCY_SYMBOL_RE.test(text)) return true;
+  CURRENCY_CODE_TOKEN_RE.lastIndex = 0;
+  let m;
+  while ((m = CURRENCY_CODE_TOKEN_RE.exec(text)) !== null) {
+    if (CURRENCIES_DATA[m[1].toUpperCase()]) return true;
+  }
+  return false;
+}
+
+/**
+ * Fast O(1)-allocation pre-filter that returns true only if text contains at least one digit
+ * AND either a known currency symbol/prefix or a valid ISO/crypto currency code.
+ */
+export function mightContainPrice(text) {
+  if (!text || typeof text !== 'string' || !/\d/.test(text)) return false;
+  return hasCurrencyMarker(text);
+}
+
 /**
  * Normalizes and parses numeric string with international conventions:
  * 1. Both comma and dot: whichever is last is decimal separator.
@@ -216,8 +247,7 @@ export function detectCurrency(text, context = {}) {
   if (/^(?:SG|SGD|S)\s*\$$/i.test(trimmed)) return 'SGD';
 
   // 1. Check explicit multi-character and unambiguous symbols first (longest first)
-  const explicitKeys = Object.keys(EXPLICIT_SYMBOL_MAP).sort((a, b) => b.length - a.length);
-  for (const sym of explicitKeys) {
+  for (const sym of EXPLICIT_SYMBOL_KEYS) {
     if (text.includes(sym)) {
       return EXPLICIT_SYMBOL_MAP[sym];
     }
@@ -225,8 +255,8 @@ export function detectCurrency(text, context = {}) {
 
   // 2. Check ISO 4217 codes with word boundaries
   const upper = text.toUpperCase();
-  for (const code of ISO_CODES) {
-    if (new RegExp(`\\b${code}\\b`).test(upper)) {
+  for (const [code, regex] of ISO_CODE_REGEX_ENTRIES) {
+    if (regex.test(upper)) {
       return code;
     }
   }
@@ -286,7 +316,7 @@ export function extractPrices(text, context = {}) {
   if (!text || typeof text !== 'string') return [];
 
   // Ignore text that has no digits or no currency-like token
-  if (!/\d/.test(text)) return [];
+  if (!mightContainPrice(text)) return [];
 
   const results = [];
 
