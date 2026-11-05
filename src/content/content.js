@@ -28,6 +28,11 @@ let offerObserver = null;
 let offerDebounceTimer = null;
 let offerTimers = [];
 let conversionFollowupTimers = [];
+let lastOfferEvalKey = null;
+let lastOfferResult = null;
+let isEvaluatingOffer = false;
+
+const OFFER_OBSERVER_MAX_LIFETIME_MS = 15000;
 
 // Theme and crypto settings for the in-page pill. Loaded on demand so the
 // first paint already matches the user's choice.
@@ -278,6 +283,8 @@ function syncConvertedPill({
 
 async function performConversion(options = {}) {
   isConverting = true;
+  lastOfferEvalKey = null;
+  lastOfferResult = null;
   stopOfferObserver();
   stopConversionFollowupTimers();
 
@@ -446,6 +453,8 @@ async function performConversion(options = {}) {
 }
 
 function performRevert() {
+  lastOfferEvalKey = null;
+  lastOfferResult = null;
   stopOfferObserver();
   stopConversionFollowupTimers();
   if (currentScanner) {
@@ -494,6 +503,20 @@ function mountOfferPill({ count, primaryCurrency, targetCurrency, hostname }) {
   }
 }
 
+function nodeMightHaveDigits(node) {
+  if (!node) return false;
+  if (node.nodeType === 3) {
+    return Boolean(node.nodeValue && /\d/.test(node.nodeValue));
+  }
+  if (node.nodeType === 1) {
+    if (node.id === 'cc-dynamic-island-host' || node.id === 'currency-convertr-root') return false;
+    const tag = node.tagName ? node.tagName.toUpperCase() : '';
+    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT' || tag === 'SVG') return false;
+    return Boolean(node.textContent && /\d/.test(node.textContent));
+  }
+  return false;
+}
+
 function startOfferObserver({
   targetCurrency,
   siteOverride,
@@ -503,6 +526,8 @@ function startOfferObserver({
 }) {
   stopOfferObserver();
   if (typeof MutationObserver === 'undefined' || !document.body) return;
+
+  let hasNumericMutation = false;
 
   const checkCandidates = () => {
     if (isConverted || isConverting || currentUI?.isDismissedForSession || !document.body) {
@@ -514,6 +539,11 @@ function startOfferObserver({
       stopOfferObserver();
       return;
     }
+    if (!hasNumericMutation) {
+      return;
+    }
+    hasNumericMutation = false;
+
     const scanner = new PageScanner({
       doc: document,
       targetCurrency,
@@ -526,6 +556,13 @@ function startOfferObserver({
     if (count >= minThreshold) {
       stopOfferObserver();
       mountOfferPill({ count, primaryCurrency, targetCurrency, hostname });
+      lastOfferResult = {
+        success: true,
+        offered: !currentUI?.isDismissedForSession,
+        count,
+        primaryCurrency,
+        targetCurrency
+      };
     }
   };
 
@@ -534,18 +571,25 @@ function startOfferObserver({
       stopOfferObserver();
       return;
     }
-    let hasRelevantAddition = false;
+    let foundDigitMutation = false;
     for (const m of mutations) {
       if (m.type === 'childList' && m.addedNodes.length > 0) {
-        hasRelevantAddition = true;
-        break;
-      }
-      if (m.type === 'characterData') {
-        hasRelevantAddition = true;
-        break;
+        for (const node of m.addedNodes) {
+          if (nodeMightHaveDigits(node)) {
+            foundDigitMutation = true;
+            break;
+          }
+        }
+        if (foundDigitMutation) break;
+      } else if (m.type === 'characterData') {
+        if (nodeMightHaveDigits(m.target)) {
+          foundDigitMutation = true;
+          break;
+        }
       }
     }
-    if (!hasRelevantAddition) return;
+    if (!foundDigitMutation) return;
+    hasNumericMutation = true;
     if (offerDebounceTimer) clearTimeout(offerDebounceTimer);
     offerDebounceTimer = setTimeout(checkCandidates, 250);
   });
@@ -558,10 +602,15 @@ function startOfferObserver({
     });
   } catch {}
 
-  for (const delayMs of [600, 1800, 3500]) {
+  for (const delayMs of [600, 1800]) {
     const t = setTimeout(checkCandidates, delayMs);
     offerTimers.push(t);
   }
+
+  const maxLifetimeTimer = setTimeout(() => {
+    stopOfferObserver();
+  }, OFFER_OBSERVER_MAX_LIFETIME_MS);
+  offerTimers.push(maxLifetimeTimer);
 }
 
 async function performOffer(options = {}) {
@@ -590,38 +639,55 @@ async function performOffer(options = {}) {
     : (settingsSource?.ambiguousDollar ?? 'USD');
   const minThreshold = options.minCandidateThreshold !== undefined ? options.minCandidateThreshold : 1;
 
-  const dryScanner = new PageScanner({
-    doc: document,
-    targetCurrency,
-    context: {
-      siteOverride: siteOverride || null,
-      ambiguousDollarSetting: ambiguousDollarSetting || 'USD'
-    }
-  });
+  const currentHref = typeof window !== 'undefined' && window.location?.href ? window.location.href : '';
+  const evalKey = `${currentHref}|${targetCurrency.toUpperCase()}|${siteOverride || ''}|${ambiguousDollarSetting || 'USD'}|${Boolean(showInPageBar)}|${minThreshold}`;
 
-  const { count, primaryCurrency } = dryScanner.scanCandidates(document.body);
-  if (count < minThreshold) {
-    startOfferObserver({
-      targetCurrency,
-      siteOverride,
-      ambiguousDollarSetting,
-      minThreshold,
-      hostname
-    });
-    return { success: true, offered: false, count };
+  // Avoid duplicate full-page scans when both autoEvaluateOnLoad and background tabs.onUpdated/onActivated trigger on the same page
+  if (!options.force && evalKey === lastOfferEvalKey && (isEvaluatingOffer || lastOfferResult)) {
+    return lastOfferResult || { success: true, offered: false, count: 0 };
   }
 
-  stopOfferObserver();
-  await ensurePillSettings();
-  mountOfferPill({ count, primaryCurrency, targetCurrency, hostname });
+  isEvaluatingOffer = true;
+  lastOfferEvalKey = evalKey;
 
-  return {
-    success: true,
-    offered: !currentUI.isDismissedForSession,
-    count,
-    primaryCurrency,
-    targetCurrency
-  };
+  try {
+    const dryScanner = new PageScanner({
+      doc: document,
+      targetCurrency,
+      context: {
+        siteOverride: siteOverride || null,
+        ambiguousDollarSetting: ambiguousDollarSetting || 'USD'
+      }
+    });
+
+    const { count, primaryCurrency } = dryScanner.scanCandidates(document.body);
+    if (count < minThreshold) {
+      startOfferObserver({
+        targetCurrency,
+        siteOverride,
+        ambiguousDollarSetting,
+        minThreshold,
+        hostname
+      });
+      lastOfferResult = { success: true, offered: false, count };
+      return lastOfferResult;
+    }
+
+    stopOfferObserver();
+    await ensurePillSettings();
+    mountOfferPill({ count, primaryCurrency, targetCurrency, hostname });
+
+    lastOfferResult = {
+      success: true,
+      offered: !currentUI.isDismissedForSession,
+      count,
+      primaryCurrency,
+      targetCurrency
+    };
+    return lastOfferResult;
+  } finally {
+    isEvaluatingOffer = false;
+  }
 }
 
 async function autoEvaluateOnLoad() {

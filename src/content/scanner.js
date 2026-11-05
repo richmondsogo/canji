@@ -1,5 +1,5 @@
 // src/content/scanner.js
-import { extractPrices, inferPageCurrency } from '../shared/parser.js';
+import { extractPrices, inferPageCurrency, hasCurrencyMarker, mightContainPrice } from '../shared/parser.js';
 import { formatCurrency, formatPriceDisplay } from '../shared/format.js';
 import { calculateRate, convertAmount } from '../shared/rates.js';
 
@@ -10,6 +10,34 @@ export const IGNORED_SELECTOR = [
   '#cc-dynamic-island-host', '#currency-convertr-root',
   '.currency-convertr-ui', '[data-cc-converted="true"]'
 ].join(', ');
+
+const IGNORED_TAGS = new Set([
+  'SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT',
+  'SELECT', 'OPTION', 'CODE', 'PRE', 'SVG', 'CANVAS'
+]);
+
+const SPLIT_CANDIDATE_TAGS = new Set([
+  'SPAN', 'DIV', 'P', 'B', 'STRONG', 'EM', 'TD'
+]);
+
+function countDescendantsUpTo(rootEl, maxCount = 25) {
+  let count = 0;
+  let cur = rootEl.firstElementChild;
+  while (cur) {
+    count++;
+    if (count > maxCount) return count;
+    if (cur.firstElementChild) {
+      cur = cur.firstElementChild;
+      continue;
+    }
+    while (cur && cur !== rootEl && !cur.nextElementSibling) {
+      cur = cur.parentElement;
+    }
+    if (!cur || cur === rootEl) break;
+    cur = cur.nextElementSibling;
+  }
+  return count;
+}
 
 export { inferPageCurrency };
 
@@ -118,14 +146,36 @@ export class PageScanner {
     }
   }
 
+  _isElementSelfIgnored(el) {
+    if (!el || el.nodeType !== 1) return false;
+    const tag = el.tagName ? el.tagName.toUpperCase() : '';
+    if (IGNORED_TAGS.has(tag)) return true;
+    const id = el.id;
+    if (id === 'cc-dynamic-island-host' || id === 'currency-convertr-root') return true;
+    const cls = el.className;
+    if (typeof cls === 'string' && cls.includes('currency-convertr-ui') && el.classList && el.classList.contains('currency-convertr-ui')) {
+      return true;
+    }
+    if (el.hasAttribute) {
+      if (
+        el.hasAttribute('data-cc-ignore') ||
+        el.hasAttribute('data-cc-converted') ||
+        el.hasAttribute('contenteditable')
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   _isNodeIgnored(node) {
     if (!node) return true;
-    const el = node.nodeType === 1 ? node : node.parentElement;
-    if (!el) return true;
+    let cur = node.nodeType === 1 ? node : node.parentElement;
+    if (!cur) return true;
 
-    if (el.closest) {
-      if (el.closest(IGNORED_SELECTOR)) return true;
-      if (el.closest('[data-cc-converted]')) return true;
+    while (cur && cur.nodeType === 1) {
+      if (this._isElementSelfIgnored(cur)) return true;
+      cur = cur.parentElement;
     }
 
     return false;
@@ -133,13 +183,12 @@ export class PageScanner {
 
   _findAllRoots(root) {
     const roots = [root];
-    if (root.querySelectorAll) {
-      const allEls = root.querySelectorAll('*');
-      for (const el of allEls) {
-        if (this._isNodeIgnored(el)) continue;
-        if (el.shadowRoot) {
-          roots.push(...this._findAllRoots(el.shadowRoot));
-        }
+    if (!root || !this.doc) return roots;
+    const walker = this.doc.createTreeWalker(root, 1); // NodeFilter.SHOW_ELEMENT
+    let el;
+    while ((el = walker.nextNode())) {
+      if (el.shadowRoot && !this._isNodeIgnored(el)) {
+        roots.push(...this._findAllRoots(el.shadowRoot));
       }
     }
     return roots;
@@ -257,78 +306,78 @@ export class PageScanner {
 
   _collectTextNodes(root) {
     const textNodes = [];
-    const walker = this.doc.createTreeWalker(
-      root,
-      4, // NodeFilter.SHOW_TEXT
-      {
-        acceptNode: (node) => {
-          if (this._isNodeIgnored(node)) return 2; // FILTER_REJECT
-          if (this.textOriginalData.has(node)) return 2; // already converted
-          if (!node.nodeValue || !/\d/.test(node.nodeValue)) return 3; // FILTER_SKIP
-          return 1; // FILTER_ACCEPT
-        }
-      }
-    );
-
+    if (!root || !this.doc) return textNodes;
+    const walker = this.doc.createTreeWalker(root, 4); // NodeFilter.SHOW_TEXT
     let node;
     while ((node = walker.nextNode())) {
+      const val = node.nodeValue;
+      if (!val || !mightContainPrice(val)) continue;
+      if (this.textOriginalData.has(node)) continue;
+      if (this._isNodeIgnored(node)) continue;
       textNodes.push(node);
     }
     return textNodes;
   }
 
   _findSplitPriceElements(root) {
-    const splitElements = [];
-    if (!root.querySelectorAll) return splitElements;
+    const matchedWithCounts = [];
+    if (!root || !this.doc) return [];
 
-    // Target short inline or block elements with children
-    const candidateElements = Array.from(root.querySelectorAll('span, div, p, b, strong, em, td'));
+    const targetISO = this.targetCurrency ? this.targetCurrency.toUpperCase() : 'USD';
+    const visitedElements = new Set();
+    const stopBoundary = root.nodeType === 1 ? root.parentElement : null;
 
-    // Sort by number of descendant elements ascending (innermost elements first)
-    candidateElements.sort((a, b) => {
-      const aCount = a.getElementsByTagName ? a.getElementsByTagName('*').length : 0;
-      const bCount = b.getElementsByTagName ? b.getElementsByTagName('*').length : 0;
-      return aCount - bCount;
-    });
+    const textWalker = this.doc.createTreeWalker(root, 4); // NodeFilter.SHOW_TEXT
+    let textNode;
+    while ((textNode = textWalker.nextNode())) {
+      const val = textNode.nodeValue;
+      if (!val || !hasCurrencyMarker(val)) continue;
 
-    for (const el of candidateElements) {
-      if (this._isNodeIgnored(el)) continue;
-      if (this.elementOriginalFragments.has(el)) continue;
-
-      // Must have at least 1 child element
-      if (el.children.length === 0) continue;
-
-      const text = (el.textContent || '').trim();
-      // Length must be reasonably short (<50 chars) and contain digits
-      if (text.length === 0 || text.length > 50 || !/\d/.test(text)) continue;
-
-      // Extract prices from combined text
-      const prices = extractPrices(text, this.context);
-      if (prices.length !== 1) continue;
-
-      const sourceISO = prices[0].currency ? prices[0].currency.toUpperCase() : null;
-      const targetISO = this.targetCurrency ? this.targetCurrency.toUpperCase() : 'USD';
-      if (!sourceISO || sourceISO === targetISO) {
-        continue;
-      }
-
-      // Verify that no individual descendant text node contained the full price
-      const walker = this.doc.createTreeWalker(el, 4); // SHOW_TEXT
-      let tNode;
-      let hasFullChild = false;
-      while ((tNode = walker.nextNode())) {
-        if (tNode.nodeValue && extractPrices(tNode.nodeValue, this.context).length > 0) {
-          hasFullChild = true;
-          break;
+      let el = textNode.parentElement;
+      while (el && el !== stopBoundary) {
+        if (visitedElements.has(el)) {
+          el = el.parentElement;
+          continue;
         }
-      }
+        visitedElements.add(el);
 
-      if (!hasFullChild) {
-        splitElements.push(el);
+        const descCount = countDescendantsUpTo(el, 25);
+        // Any ancestor of `el` has strictly more descendants than `el`, so stop walking up if > 25
+        if (descCount > 25) break;
+
+        const tag = el.tagName ? el.tagName.toUpperCase() : '';
+        if (descCount > 0 && SPLIT_CANDIDATE_TAGS.has(tag) && !this.elementOriginalFragments.has(el)) {
+          const text = (el.textContent || '').trim();
+          if (text.length > 0 && text.length <= 50 && mightContainPrice(text) && !this._isNodeIgnored(el)) {
+            const prices = extractPrices(text, this.context);
+            if (prices.length === 1) {
+              const sourceISO = prices[0].currency ? prices[0].currency.toUpperCase() : null;
+              if (sourceISO && sourceISO !== targetISO) {
+                const subWalker = this.doc.createTreeWalker(el, 4);
+                let tNode;
+                let hasFullChild = false;
+                while ((tNode = subWalker.nextNode())) {
+                  if (tNode.nodeValue && mightContainPrice(tNode.nodeValue) && extractPrices(tNode.nodeValue, this.context).length > 0) {
+                    hasFullChild = true;
+                    break;
+                  }
+                }
+                if (!hasFullChild) {
+                  matchedWithCounts.push({ el, descCount });
+                }
+              }
+            }
+          }
+        }
+
+        el = el.parentElement;
       }
     }
 
-    return splitElements;
+    // Sort only matched split-price elements by number of descendant elements ascending (innermost elements first)
+    matchedWithCounts.sort((a, b) => a.descCount - b.descCount);
+
+    return matchedWithCounts.map(item => item.el);
   }
 
   _convertSplitElement(el) {
@@ -652,6 +701,8 @@ export class PageScanner {
           }
         }
       }
+
+      if (pendingAddedNodes.size === 0) return;
 
       if (this.debounceTimer) clearTimeout(this.debounceTimer);
       this.debounceTimer = setTimeout(() => {
