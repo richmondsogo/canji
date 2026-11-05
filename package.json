@@ -21,15 +21,15 @@
     "in-page-translation"
   ],
   "author": "Richmond Sogo <richmondsogo@gmail.com>",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
-    "url": "https://github.com/richmondsogo/currency-convertr.git"
+    "url": "https://github.com/richmondsogo/canji.git"
   },
   "bugs": {
-    "url": "https://github.com/richmondsogo/currency-convertr/issues"
+    "url": "https://github.com/richmondsogo/canji/issues"
   },
-  "homepage": "https://github.com/richmondsogo/currency-convertr#readme",
+  "homepage": "https://github.com/richmondsogo/canji#readme",
   "devDependencies": {
     "esbuild": "^0.28.2",
     "jsdom": "^29.1.1",

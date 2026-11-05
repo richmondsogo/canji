@@ -935,14 +935,14 @@ export class InPageUI {
     const srcPart = this.sourceCurrency && this.sourceCurrency !== this.targetCurrency
       ? `${this.sourceCurrency} `
       : '';
-    return `Detected ${count} ${srcPart}${noun} · Convert to ${this.targetCurrency}?`;
+    return `Found ${count} ${srcPart}${noun}. Convert to ${this.targetCurrency}?`;
   }
 
   _buildDynamicIsland() {
     const island = this.doc.createElement('div');
     island.className = `cc-dynamic-island cc-bar${this.mode === 'offer' ? ' cc-mode-offer' : ''}`;
     island.setAttribute('role', 'toolbar');
-    island.setAttribute('aria-label', 'Canji Dynamic Island');
+    island.setAttribute('aria-label', 'Canji price toolbar');
 
     // 0. Ask-Mode Offer Prompt Row (Active when mode === 'offer')
     const offerRow = this.doc.createElement('div');
@@ -993,8 +993,8 @@ export class InPageUI {
     const btnOfferDismiss = this.doc.createElement('button');
     btnOfferDismiss.type = 'button';
     btnOfferDismiss.className = 'cc-dismiss-btn cc-offer-dismiss';
-    btnOfferDismiss.setAttribute('title', 'Dismiss conversion offer for this session');
-    btnOfferDismiss.setAttribute('aria-label', 'Dismiss conversion offer');
+    btnOfferDismiss.setAttribute('title', 'Hide for now');
+    btnOfferDismiss.setAttribute('aria-label', 'Hide conversion offer');
     btnOfferDismiss.appendChild(
       createSvg(this.doc, 11, 11, '0 0 24 24', 2.2, [
         { d: 'M18 6 6 18' },
@@ -1169,8 +1169,8 @@ export class InPageUI {
     const btnDismiss = this.doc.createElement('button');
     btnDismiss.className = 'cc-dismiss-btn cc-btn-close';
     btnDismiss.setAttribute('type', 'button');
-    btnDismiss.setAttribute('title', 'Dismiss toolbar for this session');
-    btnDismiss.setAttribute('aria-label', 'Dismiss price toolbar');
+    btnDismiss.setAttribute('title', 'Hide for now');
+    btnDismiss.setAttribute('aria-label', 'Hide price toolbar');
 
     const closeSvg = createSvg(
       this.doc,
@@ -1234,7 +1234,7 @@ export class InPageUI {
       if (filtered.length === 0) {
         const empty = this.doc.createElement('div');
         empty.className = 'cc-popover-empty';
-        empty.textContent = 'No currencies found';
+        empty.textContent = 'No matching currency';
         list.appendChild(empty);
         return;
       }
@@ -1383,8 +1383,8 @@ export class InPageUI {
     const mini = this.doc.createElement('button');
     mini.className = 'cc-collapsed-pill cc-bar-collapsed';
     mini.setAttribute('type', 'button');
-    mini.setAttribute('title', 'Click to expand Canji Dynamic Island');
-    mini.setAttribute('aria-label', 'Expand Canji Dynamic Island');
+    mini.setAttribute('title', 'Expand Canji');
+    mini.setAttribute('aria-label', 'Expand Canji toolbar');
     mini.style.display = 'none';
 
     const dot = this.doc.createElement('span');

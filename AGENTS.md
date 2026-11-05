@@ -1,4 +1,4 @@
-# Agent Guidelines: Currency Convertr
+# Agent Guidelines: Canji
 
 This repository operates strictly under the development rules defined in `BUILD_PROTOCOL.md`. All automated and human-paired agents must adhere to the instructions herein.
 

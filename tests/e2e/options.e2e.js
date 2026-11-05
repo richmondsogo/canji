@@ -91,7 +91,7 @@ test('E2E Options: Complete rebuild verification covering all 10 requirements', 
     //    change mode; set assumed currency; Reset clears mode; Remove deletes
     // -------------------------------------------------------------------------
     await optionsPage.locator('#input-new-site').fill('WWW.Shop.test');
-    await optionsPage.locator('button[aria-label="Mode Always"]').click();
+    await optionsPage.locator('button[aria-label="Always convert"]').click();
     await addSiteBtn.click();
     await optionsPage.waitForTimeout(600);
 
@@ -107,7 +107,7 @@ test('E2E Options: Complete rebuild verification covering all 10 requirements', 
     const errorAlert = optionsPage.locator('#new-site-error-msg');
     assert.ok(await errorAlert.isVisible(), 'Duplicate domain must display inline error message');
     const errorText = await errorAlert.textContent();
-    assert.ok(errorText.includes('already exists'), 'Error text must explain duplicate');
+    assert.ok(errorText.includes('already in your list'), 'Error text must explain duplicate');
 
     // Change mode to Never
     const neverBtn = optionsPage.locator('button[aria-label="Never convert shop.test"]');
@@ -115,7 +115,7 @@ test('E2E Options: Complete rebuild verification covering all 10 requirements', 
     await optionsPage.waitForTimeout(500);
 
     // Set assumed currency
-    const assumedCurrencyBtn = optionsPage.locator('button[aria-label="Assumed currency for shop.test"]');
+    const assumedCurrencyBtn = optionsPage.locator('button[aria-label="Currency used on shop.test"]');
     await assumedCurrencyBtn.click();
     await optionsPage.waitForTimeout(300);
     const cadItem = optionsPage.locator('[cmdk-item]:has-text("CAD")').first();
@@ -124,17 +124,21 @@ test('E2E Options: Complete rebuild verification covering all 10 requirements', 
       await optionsPage.waitForTimeout(500);
     }
 
+    // Verify per-site target currency combobox exists on the site row
+    const siteTargetCurrencyBtn = optionsPage.locator('button[aria-label="Target currency for shop.test"]');
+    assert.ok(await siteTargetCurrencyBtn.isVisible(), 'Per-site target currency combobox must be visible');
+
     // Reset clears mode and reveals caption
-    const resetBtn = optionsPage.locator('button[aria-label="Reset shop.test mode to default"]');
+    const resetBtn = optionsPage.locator('button[aria-label="Reset shop.test to default"]');
     if (await resetBtn.isVisible()) {
       await resetBtn.click();
       await optionsPage.waitForTimeout(500);
-      const defaultCaption = optionsPage.locator('span:has-text("Uses default")');
-      assert.ok(await defaultCaption.isVisible(), 'Clearing mode must show "Uses default" caption');
+      const defaultCaption = optionsPage.locator('span:has-text("Using your default")');
+      assert.ok(await defaultCaption.isVisible(), 'Clearing mode must show "Using your default" caption');
     }
 
     // Remove deletes rule
-    const removeBtn = optionsPage.locator('button[aria-label="Remove rule for shop.test"]');
+    const removeBtn = optionsPage.locator('button[aria-label="Remove shop.test"]');
     await removeBtn.click();
     await optionsPage.waitForTimeout(600);
     assert.ok(!(await siteRow.isVisible()), 'Rule for shop.test must be removed from list');
@@ -143,12 +147,12 @@ test('E2E Options: Complete rebuild verification covering all 10 requirements', 
     // 4. Pinned: add up to 8, the 9th is rejected with the message
     // -------------------------------------------------------------------------
     await optionsPage.locator('a[href="#currencies"]').click();
-    await optionsPage.waitForSelector('[aria-label="Pinned currencies list"]');
+    await optionsPage.waitForSelector('[aria-label="Pinned currencies"]');
 
     const badgeText = await optionsPage.locator('.font-mono:has-text("of 8")').first().textContent();
     assert.ok(badgeText.includes('8 of 8'), 'Default pinned currencies should have 8 items');
 
-    const limitMsg = optionsPage.locator('p:has-text("Maximum 8 pinned currencies reached")');
+    const limitMsg = optionsPage.locator('p:has-text("pinned the maximum of 8")');
     assert.ok(await limitMsg.isVisible(), 'Limit message must be shown when 8 pinned');
 
     // Remove one currency (e.g. INR)
@@ -203,6 +207,21 @@ test('E2E Options: Complete rebuild verification covering all 10 requirements', 
     assert.equal(lightMetrics.themeAttr, 'light', 'Light theme must set data-theme="light"');
     assert.equal(lightMetrics.colorScheme, 'light', 'Light theme must set root colorScheme="light"');
 
+    // Verify Display mode clickable preview cards have zero horizontal text overflow
+    const cardOverflows = await optionsPage.evaluate(() => {
+      const cards = Array.from(document.querySelectorAll('[role="radiogroup"][aria-label="Display mode"] button[role="radio"]'));
+      return cards.map((card, idx) => ({
+        idx,
+        cardScrollWidth: card.scrollWidth,
+        cardClientWidth: card.clientWidth,
+        overflows: card.scrollWidth > card.clientWidth + 1
+      }));
+    });
+    assert.equal(cardOverflows.length, 3, 'Must render 3 Display mode radio cards');
+    for (const c of cardOverflows) {
+      assert.equal(c.overflows, false, `Display mode card ${c.idx} must not overflow horizontally (${c.cardScrollWidth} > ${c.cardClientWidth})`);
+    }
+
     // -------------------------------------------------------------------------
     // 6. Reset to defaults requires confirmation and works
     // -------------------------------------------------------------------------
@@ -233,6 +252,38 @@ test('E2E Options: Complete rebuild verification covering all 10 requirements', 
       return data['currency_converter_settings_v2']?.pinnedCurrencies?.length;
     });
     assert.equal(pinnedAgain, 8, 'Resetting defaults must restore default 8 pinned currencies');
+
+    // Verify JSON file import via #input-import-settings restores settings end-to-end
+    await optionsPage.locator('#input-import-settings').setInputFiles({
+      name: 'canji-backup.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify({
+        schemaVersion: 3,
+        targetCurrency: 'JPY',
+        pinnedCurrencies: ['USD', 'EUR', 'JPY'],
+        roundWhole: true
+      }))
+    });
+    await optionsPage.waitForTimeout(600);
+
+    const importedState = await optionsPage.evaluate(async () => {
+      const data = await chrome.storage.local.get('currency_converter_settings_v2');
+      const s = data['currency_converter_settings_v2'];
+      return {
+        targetCurrency: s?.targetCurrency,
+        pinnedLen: s?.pinnedCurrencies?.length,
+        roundWhole: s?.roundWhole
+      };
+    });
+    assert.equal(importedState.targetCurrency, 'JPY', 'Imported JSON must update targetCurrency to JPY');
+    assert.equal(importedState.pinnedLen, 3, 'Imported JSON must update pinnedCurrencies length to 3');
+    assert.equal(importedState.roundWhole, true, 'Imported JSON must update roundWhole to true');
+
+    // Reset back to defaults so subsequent steps start clean
+    await optionsPage.locator('#btn-reset-defaults').click();
+    await optionsPage.waitForTimeout(300);
+    await optionsPage.locator('#btn-confirm-reset').click();
+    await optionsPage.waitForTimeout(600);
 
     // -------------------------------------------------------------------------
     // 7. Keyboard navigation: Tab through sections

@@ -416,7 +416,7 @@ test('ui: Dynamic Island renders Ask Mode offer prompt with interactive actions'
 
   const offerText = island.querySelector('.cc-offer-text');
   assert.ok(offerText, 'Must render .cc-offer-text');
-  assert.equal(offerText.textContent, 'Detected 6 EUR prices · Convert to USD?');
+  assert.equal(offerText.textContent, 'Found 6 EUR prices. Convert to USD?');
 
   const convertBtn = island.querySelector('.cc-offer-btn-primary');
   assert.ok(convertBtn, 'Must render Convert button');

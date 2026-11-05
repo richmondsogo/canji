@@ -11,7 +11,7 @@ import { launchExtensionBrowser } from '../../scripts/launch-browser.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = path.resolve(__dirname, '..', 'fixtures');
-const SHOTS_DIR = path.resolve(__dirname, '..', '..', 'docs', 'steps', 'screenshots');
+const SHOTS_DIR = path.resolve(__dirname, '..', '..', 'dist', 'test-screenshots');
 const usdSuffixHtml = fs.readFileSync(path.join(FIXTURES_DIR, 'usd_suffix.html'), 'utf8');
 
 const LIGHT_SURFACE = 'rgba(247, 245, 240, 0.86)';
@@ -73,7 +73,7 @@ test('F1: pill follows Theme setting (light/dark/system) and OS preference, load
     await setup.goto(`chrome-extension://${extensionId}/options/options.html#sites`);
     await setup.waitForSelector('#input-new-site');
     await setup.locator('#input-new-site').fill('shop.test');
-    await setup.locator('button[aria-label="Mode Always"]').click();
+    await setup.locator('button[aria-label="Always convert"]').click();
     await setup.locator('button[aria-label="Add site"]').click();
     await setup.waitForSelector('span.font-mono:has-text("shop.test")', { timeout: 5000 });
     await setup.waitForTimeout(500);

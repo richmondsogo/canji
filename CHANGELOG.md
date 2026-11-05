@@ -1,66 +1,44 @@
 # Changelog
 
-All notable changes to **Currency Convertr** will be documented in this file.
+All notable changes to **Canji** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [Unreleased]
-
-### Changed
-- **Theme-Aware In-Page Dynamic Island Pill (ADR 0015)**: Replaced hard-coded OLED black/emerald styles in `src/content/ui.css` and `src/content/ui.js` with Paper & Pine CSS custom properties (`--cc-*`) scoped to `.cc-island-container`, honoring explicit `light`/`dark` settings via `data-theme` and OS preference via `@media (prefers-color-scheme: dark)` when set to `system`, with `prefers-reduced-transparency` and `prefers-contrast: more` solid surface fallbacks.
-- **Pre-Mount Content Script Theme Resolution**: `src/content/content.js` now loads the saved `theme` setting before mounting `InPageUI` for the first time so the initial paint matches the user's configured theme without a flash.
-- **Decluttered Toolbar Popup (`src/popup/popup.jsx`)**: Removed inner boxed chrome around `"Auto-detect"`, live status, pinned quick-chips, and restricted-page notice; standardized control heights (`h-9` inputs, `h-11` primary CTA, `h-7` chips) and enforced the `>= 12px` Paper & Pine type scale throughout while preserving all DOM IDs and behavioral contracts.
-
----
-
-## [2.0.0] - 2026-10-17
+## [2.0.0] - 2026-11-05
 
 ### Added
-- **In-Page Price Conversion ("Google Translate for Prices")**:
-  - One-click page-wide price conversion via action popup button, keyboard shortcut (`Alt+Shift+C`), or context menu.
-  - Three configurable display modes:
-    - `Replace`: In-place conversion showing target currency only, with hover tooltip showing original price.
-    - `Append`: Shows original and converted price side-by-side (e.g. `$20.00 (≈ ₦30,512)`).
-    - `Replace + Highlight`: Subtle styled highlight on converted prices.
-  - 100% byte-for-byte reversible DOM: original text values and DocumentFragments for multi-element split prices are retained in a `WeakMap`, guaranteeing exact restoration when clicking "Show original".
-  - Split-price element detection: handles complex e-commerce layouts (such as Amazon's symbol + whole + decimal + fraction spans, `<sup>` cents, and nested spans).
-  - Open Shadow DOM support: scans and converts prices inside open shadow roots.
-  - Dynamic content handling: batched `MutationObserver` with 150ms debounce and loop prevention for SPAs and infinite scroll pages.
-- **In-Page Floating Translate Bar & Custom Tooltip**:
-  - Floating pill bar isolated inside an open Shadow DOM (`#currency-convertr-root`) to prevent host page CSS conflicts.
-  - Displays converted currency, "Show original" button, quick target currency changer, and session dismissal.
-  - Dark-mode aware, keyboard-accessible, and causes zero page layout shift (`position: fixed`).
-  - Interactive tooltip on hover showing original amount, source currency, rate used, and rate date.
-- **170+ Currencies & Enhanced Metadata**:
-  - Full support for 162 ISO 4217 currencies and 14 major cryptocurrencies.
-  - Static metadata generator (`scripts/generate-currencies.js`) leveraging `Intl.supportedValuesOf('currency')` with curated overrides.
-  - Searchable combobox picker in popup and options with "Pinned", "Recent", and "All currencies" grouping.
-- **Next-Generation Currency Detection**:
-  - Unambiguous explicit token matching (ISO codes, `US$`, `CA$`, `AU$`, `NZ$`, `₦`, `€`, `zł`, `Kč`, `฿`, `₺`, etc.).
-  - Structured data extraction: checks JSON-LD `priceCurrency`, OpenGraph `og:price:currency`, `product:price:currency`, and microdata `[itemprop="priceCurrency"]`.
-  - Country-code TLD resolution table (.ca &rarr; CAD, .co.uk &rarr; GBP, .ng &rarr; NGN, .jp &rarr; JPY, etc.) and `<html lang>` region detection.
-  - Per-site currency overrides and user-configurable default for ambiguous symbols (`$`, `¥`, `kr`).
-- **3-Tier Rates Engine**:
-  - Unified single rate table fetch with base EUR and cross-rate calculation: `rate(A -> B) = r[B] / r[A]`.
-  - Primary tier: European Central Bank (ECB) via Frankfurter API.
-  - Secondary tier: Fawaz Ahmed Currency API via jsDelivr CDN.
-  - Tertiary fallback: Fawaz Ahmed Currency API via Cloudflare Pages.
-  - Caching in `chrome.storage.local` with 6-hour TTL, stale-while-revalidate, in-flight fetch deduplication, and offline fallback.
-- **Toolbar Action Popup & Options Page**:
-  - Compact, modern popup (~340px) with live status, site auto-convert toggles, and rate freshness indicators.
-  - Dedicated Options page: target currency, display mode, rounding, crypto visibility, up to 8 pinned currencies, per-site rule management, and JSON settings export/import.
-- **Dynamic Site Scripting & Least-Privilege Permissions**:
-  - `activeTab` + `scripting.executeScript` for manual conversion.
-  - Dynamic content script registration (`scripting.registerContentScripts`) for auto-convert sites approved by user gesture with `optional_host_permissions: ["<all_urls>"]`.
-- **Testing & Security**:
-  - Full automated test suite (40 unit and DOM integration tests using `node:test` and `jsdom`).
-  - Build output test asserting manifests, permissions, and zip archives.
-  - Zero `innerHTML` usage across extension code for complete XSS prevention and clean `web-ext lint` validation.
+- **In-Page Price Conversion & Reversible DOM Engine**:
+  - Converts prices directly in place across international web pages while preserving page layout and typography.
+  - Three display modes: **Replace in place**, **Beside original** (`€249.00 ($277.14)`), and **Replace and highlight**.
+  - 100% byte-for-byte DOM restoration via `WeakMap` original node preservation when clicking **Show original**.
+  - Split-price assembly for multi-element e-commerce price structures (Amazon split whole/fraction spans, `<sup>` cents, and nested inline spans) and open Shadow DOM traversal.
+- **Explicit Per-Site `Convert from → to` Currency Rules**:
+  - Per-site rules in both the Toolbar Popup and Settings → Sites now explicitly configure **From** (`Auto-detect` or a specific source currency) and **To** (`Default` or a site-specific target currency) alongside site mode (`Ask`, `Always`, `Never`).
+  - Real-time two-way synchronization between Popup and Settings via `chrome.storage.onChanged`, plus an inline warning when **From** and **To** are set to the same currency.
+- **Theme-Aware On-Page Toolbar (`src/content/ui.js`, `src/content/ui.css`)**:
+  - Isolated inside an open Shadow DOM root (`#cc-dynamic-island-host`) and styled with Paper & Pine CSS custom properties (`--cc-*`) that follow Light, Dark, and System themes before first paint.
+  - Supports both **Ask** offer prompts (`Found N CUR prices. Convert to TARGET? [Convert] [Always] [×]`) and **Converted** controls (`Original` / `Converted` toggle, target currency picker, and session dismiss).
+  - Interactive hover tooltip on converted prices displaying the original amount, source currency, and exchange rate used.
+- **Settings Dashboard (`src/options/options.jsx`)**:
+  - Built on a unified `Card` + `Sidebar` architecture with local `Familjen Grotesk` and `Fragment Mono` typography and Phosphor icons.
+  - Manage default target currency, `$` disambiguation, default behavior on new sites (`Ask` vs `Always`), up to 8 pinned currencies, per-site rules, appearance preview cards, and JSON settings backup/restore.
+- **170+ Currencies & 3-Tier Exchange Rate Engine**:
+  - Supports 162 ISO 4217 fiat currencies and 14 major cryptocurrencies.
+  - Fetches base-EUR reference rates from the European Central Bank (Frankfurter API) with automatic fallback to Fawaz Ahmed Currency API (jsDelivr CDN and Cloudflare Pages) and an offline fallback table.
 
-### Changed
-- Refactored entire codebase into modular ES modules bundled with `esbuild`.
-- Preserved 100% backwards compatibility for v1 right-click context menu selection conversion and desktop notification.
-- Updated documentation: `README.md`, `DESIGN.md`, `PRIVACY_POLICY.md`, `CHROMEWEBSTORE.md`.
+### Fixed
+- **Fresh Browser Launch & Dynamic Site Auto-Convert / Auto-Ask Reliability**:
+  - Added declarative `content_scripts` (`document_idle`) with direct `chrome.storage.local` settings and rate cache reads so `Always` and `Ask` rules execute reliably on fresh browser launches without waiting on cold MV3 service-worker startups.
+  - Mounted the on-page toolbar dynamically via `onConvertedCountChange` when prices hydrate asynchronously after initial page load.
+  - Added `startOfferObserver` (debounced `MutationObserver` + post-hydration checks) and lowered default `minCandidateThreshold` to `1` so single-product pages and dynamically hydrated sites reliably display the `Ask` offer prompt.
+- **Display Mode Preview Cards Overflow**:
+  - Stacked the `Preview` label above the sample price inside the 3 Display mode radio cards in Settings → Appearance so long converted strings never overflow the card border.
+- **Settings JSON Import & Session Offer Dismissal**:
+  - Fixed JSON settings import to apply validated v2/v3 settings directly and persisted session offer dismissals in `chrome.storage.session`.
+
+### Removed
+- **Removed Unreliable `Alt+Shift+C` Keyboard Shortcut**:
+  - Removed the `commands` manifest declaration and all UI/documentation references to keyboard shortcuts in favor of the toolbar popup, on-page toolbar, right-click context menu, and per-site rules.

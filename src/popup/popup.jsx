@@ -10,12 +10,12 @@ import { CurrencyCombobox } from "@/ui/components/CurrencyCombobox";
 import { CanjiLockup } from "@/ui/components/CanjiLogo";
 import { getEffectiveSiteCaption } from "@/ui/lib/site-rules";
 import {
-  Clock,
-  GearSix,
+  ClockCounterClockwise,
+  Faders,
   WarningCircle,
   ArrowRight,
-  Sparkle,
-  ArrowCounterClockwise,
+  ArrowsLeftRight,
+  ArrowUUpLeft,
   GlobeHemisphereWest,
 } from "@phosphor-icons/react";
 import { getAllCurrencies } from "../shared/currencies.js";
@@ -31,6 +31,7 @@ import {
 } from "../shared/browser.js";
 import {
   setSiteMode,
+  getSiteCurrencies,
   normalizeHost,
   DEFAULT_SETTINGS,
 } from "../shared/settings.js";
@@ -61,7 +62,7 @@ export function PopupApp() {
   const [origin, setOrigin] = useState("");
   const [isRestricted, setIsRestricted] = useState(false);
 
-  // Active page target currency (page-only override, does NOT write to settings.targetCurrency)
+  // Active site/page conversion currencies (two-way synced with settings.perSite[hostname])
   const [pageTargetCurrency, setPageTargetCurrency] = useState("USD");
   const [isPageConverted, setIsPageConverted] = useState(false);
   const [converting, setConverting] = useState(false);
@@ -70,11 +71,10 @@ export function PopupApp() {
   const [statusMessage, setStatusMessage] = useState("Ready to convert");
   const [statusType, setStatusType] = useState("ready"); // "ready" | "converting" | "converted" | "error"
 
-  // Rates & Shortcuts metadata
+  // Rates metadata
   const [ratesInfo, setRatesInfo] = useState(null);
   const [ratesError, setRatesError] = useState(false);
   const [ratesLoading, setRatesLoading] = useState(false);
-  const [shortcutKey, setShortcutKey] = useState("Alt+Shift+C");
 
   // Site rule local state
   const [siteMode, setSiteModeState] = useState(""); // explicit "ask"|"always"|"never" or ""
@@ -128,21 +128,6 @@ export function PopupApp() {
 
       const [loadedSettings, tab] = await Promise.all([settingsP, tabP]);
 
-      // 2. Query keyboard shortcut
-      try {
-        if (api && api.commands && api.commands.getAll) {
-          api.commands.getAll((commands) => {
-            const cmd = commands.find((c) => c.name === "toggle-page-conversion");
-            if (cmd && cmd.shortcut) {
-              setShortcutKey(cmd.shortcut);
-            }
-          });
-        }
-      } catch (e) {
-        console.warn("[Popup] Could not query commands:", e);
-      }
-
-      // 3. Retain the active page before rates have finished loading.
       setCurrentTab(tab);
 
       const tabUrl = tab?.url || "";
@@ -151,7 +136,7 @@ export function PopupApp() {
 
       if (restricted) {
         setStatusType("ready");
-        setStatusMessage("Extension permissions do not apply here");
+        setStatusMessage("Canji can't run on this page");
         setLoading(false);
         return;
       }
@@ -171,15 +156,20 @@ export function PopupApp() {
         }
       }
 
-      // 4. Initialize site rules from settings
+      // Initialize site rules & per-site currencies from settings
       if (host && loadedSettings) {
         const norm = normalizeHost(host);
         const rule = (loadedSettings.perSite && loadedSettings.perSite[norm]) || {};
+        const { assumedCurrency: resolvedAssumed, targetCurrency: resolvedTarget } =
+          getSiteCurrencies(loadedSettings, norm);
         setSiteModeState(rule.mode || "");
-        setAssumedCurrencyState(rule.assumedCurrency || null);
+        setAssumedCurrencyState(resolvedAssumed || null);
+        if (resolvedTarget) {
+          setPageTargetCurrency(resolvedTarget);
+        }
       }
 
-      // 5. Query active page conversion status
+      // Query active page conversion status
       if (tab && tab.id) {
         try {
           let status = await sendTabMessage(tab.id, { type: MSG.GET_PAGE_STATUS });
@@ -193,7 +183,7 @@ export function PopupApp() {
             setIsPageConverted(true);
             setStatusType("converted");
             setStatusMessage(
-              `${status.count} prices converted to ${status.targetCurrency || "USD"}`
+              `${status.count} ${status.count === 1 ? "price" : "prices"} converted to ${status.targetCurrency || "USD"}`
             );
             if (status.targetCurrency) {
               setPageTargetCurrency(status.targetCurrency);
@@ -203,7 +193,7 @@ export function PopupApp() {
             setStatusType("ready");
             setStatusMessage("Ready to convert");
           }
-        } catch (e) {
+        } catch {
           setIsPageConverted(false);
           setStatusType("ready");
           setStatusMessage("Ready to convert");
@@ -225,7 +215,7 @@ export function PopupApp() {
     });
   }, [settings?.theme]);
 
-  // Sync settings when storage changes
+  // Sync settings when storage changes (two-way sync with Options page)
   useEffect(() => {
     const handleStorageChange = (changes, area) => {
       if ((area === "local" || area === "sync") && changes.currency_converter_settings_v2) {
@@ -236,8 +226,15 @@ export function PopupApp() {
           if (hostname) {
             const norm = normalizeHost(hostname);
             const rule = (next.perSite && next.perSite[norm]) || {};
+            const { assumedCurrency: nextAssumed, targetCurrency: nextTarget } =
+              getSiteCurrencies(next, norm);
             setSiteModeState(rule.mode || "");
-            setAssumedCurrencyState(rule.assumedCurrency || null);
+            setAssumedCurrencyState(nextAssumed || null);
+            if (nextTarget) {
+              setPageTargetCurrency(nextTarget);
+            }
+          } else if (next.targetCurrency) {
+            setPageTargetCurrency(next.targetCurrency);
           }
         }
       }
@@ -255,7 +252,7 @@ export function PopupApp() {
       const activeTab = currentTab?.id ? currentTab : await getActiveTab();
       if (!activeTab?.id) {
         setStatusType("error");
-        setStatusMessage("Could not find an open web page to convert");
+        setStatusMessage("Open a web page to convert its prices");
         return;
       }
       if (!currentTab?.id) {
@@ -263,18 +260,18 @@ export function PopupApp() {
       }
       if (isRestricted || isRestrictedPage(activeTab.url)) {
         setStatusType("error");
-        setStatusMessage("Cannot run on browser system pages");
+        setStatusMessage("Canji can't run on this page");
         return;
       }
 
       setConverting(true);
       setStatusType("converting");
-      setStatusMessage("Scanning and converting...");
+      setStatusMessage("Converting…");
 
       try {
         const injected = await ensureInjected(activeTab.id);
         if (!injected) {
-          throw new Error("Could not prepare this page for conversion");
+          throw new Error("Could not prepare this page");
         }
 
         const ratesData = ratesInfo || (await sendMessage({ type: MSG.GET_RATES }));
@@ -284,7 +281,9 @@ export function PopupApp() {
         const resolvedSiteOverride =
           siteOverrideArg !== undefined
             ? siteOverrideArg
-            : assumedCurrency || siteRule?.assumedCurrency || null;
+            : assumedCurrency !== null
+            ? assumedCurrency
+            : siteRule?.assumedCurrency || null;
 
         const convertPayload = {
           manual: true,
@@ -326,8 +325,7 @@ export function PopupApp() {
           } else {
             setIsPageConverted(true);
             setStatusType("converted");
-            const providerStr = ratesData?.provider || "ECB";
-            setStatusMessage(`${count} prices converted · Rates: ${providerStr}`);
+            setStatusMessage(`${count} ${count === 1 ? "price" : "prices"} converted`);
             if (settings?.soundFeedback) playTactileClick();
           }
         } else {
@@ -341,15 +339,13 @@ export function PopupApp() {
             hasResponse: Boolean(response),
             rawError: response?.error,
           });
-          setStatusMessage(
-            getConversionErrorMessage(errorClass, response?.error ? `Conversion error: ${response.error}` : null)
-          );
+          setStatusMessage(getConversionErrorMessage(errorClass));
         }
-      } catch (err) {
+      } catch {
         setIsPageConverted(false);
         setStatusType("error");
         if (settings?.soundFeedback) playErrorChime();
-        setStatusMessage(`Error: ${err.message}`);
+        setStatusMessage("Couldn't convert this page. Try reloading it.");
       } finally {
         setConverting(false);
       }
@@ -361,7 +357,7 @@ export function PopupApp() {
     if (!currentTab || !currentTab.id) return;
     setConverting(true);
     setStatusType("converting");
-    setStatusMessage("Restoring original prices...");
+    setStatusMessage("Restoring original prices…");
 
     try {
       let response = await sendTabMessage(currentTab.id, { type: MSG.REVERT_PAGE });
@@ -379,12 +375,12 @@ export function PopupApp() {
       } else {
         setStatusType("error");
         if (settings?.soundFeedback) playErrorChime();
-        setStatusMessage("Could not restore original prices");
+        setStatusMessage("Couldn't restore the original prices");
       }
-    } catch (err) {
+    } catch {
       setStatusType("error");
       if (settings?.soundFeedback) playErrorChime();
-      setStatusMessage("Error restoring prices");
+      setStatusMessage("Couldn't restore the original prices");
     } finally {
       setConverting(false);
     }
@@ -398,39 +394,88 @@ export function PopupApp() {
     }
   };
 
-  // Change active page target currency (page-only, never writes to settings.targetCurrency)
-  const handlePageTargetCurrencyChange = (newCode) => {
+  // Persist per-site rule update to storage so Popup and Settings stay in sync
+  const persistSiteRulePatch = useCallback(
+    async (patch) => {
+      if (!hostname || !settings) return;
+      const norm = normalizeHost(hostname);
+      if (!norm) return;
+      const updatedPerSite = { ...(settings.perSite || {}) };
+      const existing = updatedPerSite[norm] || {};
+      const merged = {
+        ...existing,
+        ...patch,
+      };
+      const cleanMode = ["ask", "always", "never"].includes(merged.mode)
+        ? merged.mode
+        : undefined;
+      const cleanAssumed = merged.assumedCurrency || null;
+      const cleanTarget =
+        merged.targetCurrency && merged.targetCurrency !== settings.targetCurrency
+          ? merged.targetCurrency
+          : merged.targetCurrency === settings.targetCurrency && existing.targetCurrency
+          ? null
+          : merged.targetCurrency || null;
+
+      if (!cleanMode && !cleanAssumed && !cleanTarget) {
+        delete updatedPerSite[norm];
+      } else {
+        const nextEntry = { assumedCurrency: cleanAssumed };
+        if (cleanMode) nextEntry.mode = cleanMode;
+        if (cleanTarget) nextEntry.targetCurrency = cleanTarget;
+        updatedPerSite[norm] = nextEntry;
+      }
+
+      try {
+        await sendMessage({
+          type: MSG.UPDATE_SETTINGS,
+          payload: { perSite: updatedPerSite },
+        });
+        setSettings((prev) => (prev ? { ...prev, perSite: updatedPerSite } : prev));
+      } catch (err) {
+        console.warn("[Popup] Failed to persist site rule:", err);
+      }
+    },
+    [hostname, settings]
+  );
+
+  // Change active site target currency ("To") and sync with site rule
+  const handlePageTargetCurrencyChange = async (newCode) => {
     if (!newCode || newCode === pageTargetCurrency) return;
     setPageTargetCurrency(newCode);
-    if (isPageConverted) {
-      triggerConvert(newCode);
+    await persistSiteRulePatch({
+      targetCurrency: newCode === settings?.targetCurrency ? null : newCode,
+    });
+    if (isPageConverted || siteMode === "always") {
+      void triggerConvert(newCode);
     }
   };
 
-  // Site mode changes
+  // Site mode changes ("Ask" | "Always" | "Never")
   const handleSiteModeChange = async (newMode) => {
     if (!hostname || !settings) return;
     if (newMode === "always") {
       const granted = await requestOriginPermission(origin);
       if (!granted) {
         setStatusType("error");
-        setStatusMessage("Permission denied for this site");
+        setStatusMessage("Canji needs permission to run on this site");
         return;
       }
     }
 
-    const updatedPerSite = { ...(settings.perSite || {}) };
-    setSiteMode({ perSite: updatedPerSite }, hostname, newMode);
     setSiteModeState(newMode);
+    await persistSiteRulePatch({
+      mode: newMode,
+      targetCurrency:
+        pageTargetCurrency && pageTargetCurrency !== settings.targetCurrency
+          ? pageTargetCurrency
+          : null,
+    });
 
-    try {
-      await sendMessage({
-        type: MSG.UPDATE_SETTINGS,
-        payload: { perSite: updatedPerSite },
-      });
-      setSettings((prev) => ({ ...prev, perSite: updatedPerSite }));
-    } catch (err) {
-      console.warn("[Popup] Failed to update site mode:", err);
+    if (newMode === "always" && !isPageConverted) {
+      void triggerConvert(pageTargetCurrency);
+    } else if (newMode === "never" && isPageConverted) {
+      void triggerRevert();
     }
   };
 
@@ -451,30 +496,14 @@ export function PopupApp() {
     }
   };
 
-  // Site assumed currency changes
+  // Site assumed currency changes ("From")
   const handleAssumedCurrencyChange = async (currency) => {
     if (!hostname || !settings) return;
-    const norm = normalizeHost(hostname);
-    const updatedPerSite = { ...(settings.perSite || {}) };
-    if (!updatedPerSite[norm]) updatedPerSite[norm] = {};
     const nextAssumed = currency || null;
-    updatedPerSite[norm] = {
-      ...updatedPerSite[norm],
-      assumedCurrency: nextAssumed,
-    };
     setAssumedCurrencyState(nextAssumed);
-
-    try {
-      await sendMessage({
-        type: MSG.UPDATE_SETTINGS,
-        payload: { perSite: updatedPerSite },
-      });
-      setSettings((prev) => ({ ...prev, perSite: updatedPerSite }));
-      if (isPageConverted) {
-        await triggerConvert(pageTargetCurrency, nextAssumed);
-      }
-    } catch (err) {
-      console.warn("[Popup] Failed to update assumed currency:", err);
+    await persistSiteRulePatch({ assumedCurrency: nextAssumed });
+    if (isPageConverted || siteMode === "always") {
+      await triggerConvert(pageTargetCurrency, nextAssumed);
     }
   };
 
@@ -497,13 +526,19 @@ export function PopupApp() {
 
   // Rates text display
   const ratesFreshnessText = useMemo(() => {
-    if (ratesLoading) return "Updating...";
+    if (ratesLoading) return "Updating…";
     if (ratesError || !ratesInfo) return "Rates unavailable";
-    const provider = ratesInfo.provider || "ECB";
+    const rawProvider = ratesInfo.provider || "ECB";
+    const provider = rawProvider.startsWith("ECB") ? "ECB" : "Live rates";
     const date = ratesInfo.date || "Today";
-    const staleNotice = ratesInfo.isStale ? " (cached)" : "";
+    const staleNotice = ratesInfo.isStale ? " (saved copy)" : "";
     return `${provider} · ${date}${staleNotice}`;
   }, [ratesLoading, ratesError, ratesInfo]);
+
+  const isSameFromAndTo =
+    Boolean(assumedCurrency) &&
+    Boolean(pageTargetCurrency) &&
+    assumedCurrency.toUpperCase() === pageTargetCurrency.toUpperCase();
 
   return (
     <div className="w-[360px] max-h-[580px] overflow-y-auto bg-background text-foreground font-sans p-4 flex flex-col gap-3.5 select-none selection:bg-accent/20">
@@ -516,11 +551,11 @@ export function PopupApp() {
           variant="ghost"
           size="icon"
           onClick={openOptionsPage}
-          title="Settings & Options"
+          title="Settings"
           aria-label="Open settings"
           className="hit-target-44 h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-secondary/70 rounded-md transition-colors"
         >
-          <GearSix weight="regular" className="h-4 w-4" aria-hidden="true" />
+          <Faders weight="regular" className="h-4 w-4" aria-hidden="true" />
         </Button>
       </header>
 
@@ -532,52 +567,97 @@ export function PopupApp() {
         >
           <WarningCircle weight="fill" className="h-4 w-4 text-warning shrink-0 mt-0.5" aria-hidden="true" />
           <span className="leading-relaxed">
-            Price conversion is unavailable on browser system or restricted extension pages.
+            Canji can't convert prices on browser or store pages.
           </span>
         </div>
       )}
 
       {/* 3. Main Controls */}
       <main id="main-controls" className="flex flex-col gap-3.5">
-        {/* Converter / Target Currency */}
+        {/* Explicit From -> To Converter Block */}
         <section className="space-y-2" aria-labelledby="target-heading">
           <div className="flex items-center justify-between">
             <h2 id="target-heading" className="text-xs font-medium text-muted-foreground">
-              Convert this page to
+              Convert prices on {hostname || "this page"}
             </h2>
             {pageTargetCurrency === settings?.targetCurrency && (
-              <Badge variant="secondary" className="text-xs font-mono font-medium text-muted-foreground bg-secondary/80 px-1.5 py-0 rounded border border-border/50">
-                Default
+              <Badge
+                variant="secondary"
+                className="text-xs font-mono font-medium text-muted-foreground bg-secondary/80 px-1.5 py-0 rounded border border-border/50"
+              >
+                Default ({settings.targetCurrency})
               </Badge>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            <span
-              id="from-display"
-              className="shrink-0 text-xs text-muted-foreground font-medium"
-            >
-              {assumedCurrency ? `Site (${assumedCurrency})` : "Auto-detect"}
-            </span>
+          <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+            <div className="flex flex-col gap-1 min-w-0">
+              <label
+                htmlFor="site-currency-override"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                From
+              </label>
+              <div id="from-display" className="min-w-0">
+                <CurrencyCombobox
+                  triggerId="site-currency-override"
+                  value={assumedCurrency}
+                  onChange={handleAssumedCurrencyChange}
+                  currencies={allCurrencies}
+                  allowAutoDetect={true}
+                  autoDetectLabel="Auto-detect"
+                  triggerText={assumedCurrency || "Auto-detect"}
+                  ariaLabel={`Convert from currency on ${hostname || "this site"}`}
+                  align="start"
+                  disabled={isRestricted}
+                  className="w-full h-8 px-2.5 text-xs font-mono"
+                  popoverClassName="w-[260px]"
+                  scrollHeight="h-44"
+                  placeholder="Search currencies…"
+                />
+              </div>
+            </div>
 
-            <ArrowRight weight="bold" className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
-
-            <div className="flex-1 min-w-0">
-              <CurrencyCombobox
-                triggerId="picker-to-btn"
-                searchInputId="currency-search-input"
-                value={pageTargetCurrency}
-                onChange={handlePageTargetCurrencyChange}
-                currencies={allCurrencies}
-                ariaLabel="Select target currency for this page"
-                align="end"
-                disabled={isRestricted}
-                onPrefetch={loadRates}
-                className="w-full h-8 font-mono text-xs"
-                placeholder="Search code or name..."
+            <div className="pb-2 flex items-center justify-center">
+              <ArrowRight
+                weight="bold"
+                className="h-3.5 w-3.5 text-muted-foreground shrink-0"
+                aria-hidden="true"
               />
             </div>
+
+            <div className="flex flex-col gap-1 min-w-0">
+              <label
+                htmlFor="picker-to-btn"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                To
+              </label>
+              <div className="min-w-0">
+                <CurrencyCombobox
+                  triggerId="picker-to-btn"
+                  searchInputId="currency-search-input"
+                  value={pageTargetCurrency}
+                  onChange={handlePageTargetCurrencyChange}
+                  currencies={allCurrencies}
+                  ariaLabel="Select target currency for this page"
+                  align="end"
+                  disabled={isRestricted}
+                  onPrefetch={loadRates}
+                  className="w-full h-8 px-2.5 font-mono text-xs"
+                  popoverClassName="w-[260px]"
+                  placeholder="Search currencies…"
+                />
+              </div>
+            </div>
           </div>
+
+          {isSameFromAndTo && (
+            <p className="text-xs text-warning flex items-center gap-1.5 pt-0.5">
+              <WarningCircle weight="fill" className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>From and To are both {pageTargetCurrency}. Set From to Auto-detect unless this site only uses {assumedCurrency}.</span>
+            </p>
+          )}
 
           {/* Pinned currencies: balanced 4-column grid with tactile micro-elevation */}
           <div
@@ -623,19 +703,19 @@ export function PopupApp() {
         >
           {!converting && !isRestricted && (
             isPageConverted ? (
-              <ArrowCounterClockwise weight="bold" className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <ArrowUUpLeft weight="bold" className="h-4 w-4 shrink-0" aria-hidden="true" />
             ) : (
-              <Sparkle weight="fill" className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <ArrowsLeftRight weight="bold" className="h-4 w-4 shrink-0" aria-hidden="true" />
             )
           )}
           <span>
             {converting
-              ? "Converting..."
+              ? "Converting…"
               : isRestricted
               ? "Unavailable on this page"
               : isPageConverted
               ? "Show original"
-              : "Convert this page"}
+              : `Convert to ${pageTargetCurrency}`}
           </span>
         </Button>
 
@@ -671,17 +751,21 @@ export function PopupApp() {
           </span>
         </div>
 
-        {/* 6. Unified "This site" control group — flat hairline layout per DESIGN.md */}
+        {/* 6. Unified "This site" control group — flat hairline layout */}
         {!isRestricted && (
           <section
-            className="border-t border-border/70 pt-3 space-y-2.5"
+            className="border-t border-border/70 pt-3 space-y-2"
             aria-labelledby="site-heading"
           >
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
-                <GlobeHemisphereWest weight="duotone" className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
+                <GlobeHemisphereWest
+                  weight="duotone"
+                  className="h-3.5 w-3.5 text-muted-foreground shrink-0"
+                  aria-hidden="true"
+                />
                 <h2 id="site-heading" className="text-xs font-medium text-muted-foreground shrink-0">
-                  This site
+                  On
                 </h2>
                 <span
                   id="current-domain-label"
@@ -698,7 +782,7 @@ export function PopupApp() {
                   size="sm"
                   onClick={handleResetSiteMode}
                   className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-                  title="Reset site rule to default"
+                  title="Reset to default"
                 >
                   Reset
                 </Button>
@@ -706,7 +790,7 @@ export function PopupApp() {
             </div>
 
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-foreground">Automatic conversion</span>
+              <span className="text-xs text-foreground">When visiting</span>
               <SiteModeControl
                 value={siteMode}
                 onChange={handleSiteModeChange}
@@ -717,34 +801,10 @@ export function PopupApp() {
             </div>
 
             {!siteMode && (
-              <div className="text-xs text-muted-foreground text-right -mt-1">
+              <div className="text-xs text-muted-foreground text-right">
                 {effectiveCaption}
               </div>
             )}
-
-            <div className="flex items-center justify-between gap-2 pt-1">
-              <label
-                htmlFor="site-currency-override"
-                className="text-xs text-foreground truncate min-w-0"
-              >
-                Prices on this site are in
-              </label>
-              <CurrencyCombobox
-                triggerId="site-currency-override"
-                value={assumedCurrency}
-                onChange={handleAssumedCurrencyChange}
-                currencies={allCurrencies}
-                allowAutoDetect={true}
-                autoDetectLabel="Auto-detect"
-                triggerText={assumedCurrency || "Auto-detect"}
-                ariaLabel={`Prices on ${hostname || "this site"} are in`}
-                align="end"
-                className="h-8 px-2.5 text-xs font-mono w-[136px] shrink-0"
-                popoverClassName="w-[280px]"
-                scrollHeight="h-44"
-                placeholder="Assumed currency..."
-              />
-            </div>
           </section>
         )}
       </main>
@@ -753,7 +813,7 @@ export function PopupApp() {
       <Separator />
       <footer className="flex items-center justify-between gap-3 text-xs text-muted-foreground -mt-1">
         <div id="rates-meta" className="flex items-center gap-1.5 min-w-0">
-          <Clock weight="regular" className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <ClockCounterClockwise weight="duotone" className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <span id="rates-freshness-text" className="truncate tabular-nums">
             {ratesFreshnessText}
           </span>
@@ -770,18 +830,13 @@ export function PopupApp() {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          {shortcutKey && (
-            <kbd className="px-1.5 py-0.5 text-xs font-mono rounded bg-secondary border border-border/60 text-muted-foreground">
-              {shortcutKey}
-            </kbd>
-          )}
           <a
             id="link-options"
             href="#"
             onClick={openOptionsPage}
             className="text-foreground font-medium hover:underline underline-offset-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Options
+            Settings
           </a>
         </div>
       </footer>

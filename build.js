@@ -282,13 +282,13 @@ export async function buildExtension() {
   copyStaticFiles(chromeDir);
   copyStaticFiles(firefoxDir);
 
-  // 3. Manifest for Chrome (Manifest V3 with service_worker and version_name build stamp)
+  // 3. Manifest for Chrome (Manifest V3 with service_worker)
   const commonManifest = {
     manifest_version: 3,
     name: "Canji",
     short_name: "Canji",
     version: VERSION,
-    description: "Prices, in your currency. Instant in-page currency converter with live exchange rates.",
+    description: "Prices, in your currency. Convert prices on any page with live exchange rates.",
     permissions: [
       "contextMenus",
       "notifications",
@@ -321,27 +321,25 @@ export async function buildExtension() {
       page: "options/options.html",
       open_in_tab: true
     },
-    commands: {
-      "toggle-page-conversion": {
-        suggested_key: {
-          default: "Alt+Shift+C",
-          mac: "Alt+Shift+C"
-        },
-        description: "Toggle in-page price conversion"
+    content_scripts: [
+      {
+        matches: ["http://*/*", "https://*/*"],
+        js: ["content.js"],
+        run_at: "document_idle",
+        all_frames: false
       }
-    }
+    ]
   };
 
   const chromeManifest = {
     ...commonManifest,
-    version_name: `${VERSION} (${gitSha})`,
     background: {
       service_worker: "background.js"
     }
   };
   fs.writeFileSync(path.join(chromeDir, 'manifest.json'), JSON.stringify(chromeManifest, null, 2));
 
-  // 4. Manifest for Firefox (Manifest V3 with background.scripts & Gecko settings; strictly NO version_name)
+  // 4. Manifest for Firefox (Manifest V3 with background.scripts & Gecko settings)
   const firefoxManifest = {
     ...commonManifest,
     browser_specific_settings: {

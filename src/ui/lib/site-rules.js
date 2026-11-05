@@ -9,7 +9,7 @@ import { normalizeHost, migrateSettings } from '../../shared/settings.js';
  */
 export function getEffectiveSiteCaption(rule, autoConvertAll) {
   if (!rule || !rule.mode) {
-    return `Uses default (${autoConvertAll ? 'Always' : 'Ask'})`;
+    return `Using your default: ${autoConvertAll ? 'Always' : 'Ask'}`;
   }
   return '';
 }
@@ -23,14 +23,14 @@ export function getEffectiveSiteCaption(rule, autoConvertAll) {
 export function validateDomainInput(rawDomain, existingPerSite = {}) {
   const trimmed = typeof rawDomain === 'string' ? rawDomain.trim() : '';
   if (!trimmed) {
-    return { ok: false, error: 'Please enter a domain name (e.g. amazon.de)' };
+    return { ok: false, error: 'Please enter a website (e.g. amazon.de)' };
   }
   const clean = normalizeHost(trimmed);
   if (!clean || !clean.includes('.')) {
-    return { ok: false, error: 'Please enter a valid domain containing an extension (e.g. amazon.de)' };
+    return { ok: false, error: "That doesn't look like a website. Try something like amazon.de." };
   }
   if (existingPerSite && existingPerSite[clean]) {
-    return { ok: false, error: `A rule for "${clean}" already exists` };
+    return { ok: false, error: `${clean} is already in your list` };
   }
   return { ok: true, clean };
 }
@@ -52,16 +52,16 @@ export function canAddPinned(pinnedCurrencies) {
  */
 export function validateImportContent(rawText) {
   if (!rawText || typeof rawText !== 'string') {
-    throw new Error('File content must be a non-empty string');
+    throw new Error('That file is empty.');
   }
   let parsed;
   try {
     parsed = JSON.parse(rawText);
   } catch (err) {
-    throw new Error(`Invalid JSON: ${err.message}`);
+    throw new Error("That file isn't valid JSON.");
   }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('File content must be a JSON object');
+    throw new Error("That doesn't look like a Canji settings file.");
   }
   return migrateSettings(parsed);
 }

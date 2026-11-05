@@ -31,7 +31,7 @@ test('T1 Regression: Show original stays original on late mutations, re-converts
 
     await page.goto(`chrome-extension://${browser.extensionId}/options/options.html#sites`);
     await page.locator('#input-new-site').fill('shop.test');
-    await page.locator('button[aria-label="Mode Always"]').click();
+    await page.locator('button[aria-label="Always convert"]').click();
     await page.locator('button[aria-label="Add site"]').click();
     await page.waitForTimeout(1000);
 

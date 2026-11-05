@@ -1,7 +1,7 @@
 ---
 name: canji
-version: 2.1.0-draft
-description: Paper & Pine design system for Canji browser extension.
+version: 2.0.0
+description: Paper & Pine design system for the Canji browser extension.
 palette:
   light:
     background: "#F7F5F0"
@@ -32,185 +32,94 @@ typography:
     fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
     weights: [400, 500, 600]
 scales:
-  type: [12, 13, 14, 16, 22]
-  spacing: [4, 8, 12, 16, 24, 32, 48]
+  type: [12, 13, 14, 16, 20]
+  spacing: [4, 8, 12, 16, 24, 32]
   radius: "8px"
   hairline: "1px"
 motion:
   duration: "150ms"
-  easing: "ease-out"
+  easing: "cubic-bezier(0.16, 1, 0.3, 1)"
 ---
 
-# Design Philosophy & Technical UI/UX Specifications
+# Canji Design System — Paper & Pine
 
-> **Project**: Canji  
-> **Version**: 2.1.0-draft  
+> **Project**: Canji ("Prices, in your currency")  
+> **Version**: 2.0.0  
 > **Aesthetic**: Paper & Pine — Warm Editorial Minimalism  
 > **Architecture**: Cross-Browser Web Extension (Manifest V3)  
 
 ---
 
-## 1. Overview
+## 1. Overview & Brand Identity
 
-Canji provides an unobtrusive, high-fidelity currency translation experience for web pages. Inspired by tactile archival stationery and precision instrumentation, the visual language departs entirely from sterile, cold zinc greys in favor of the **"Paper & Pine"** design system:
-- **Warm, tactile surfaces**: Natural paper canvases (`#F7F5F0` light, `#10100E` dark).
-- **Hairline structural division**: Whisper-quiet 1px borders (`#E2DED4` light, `#2A2926` dark).
-- **Ink-based hierarchy**: High-contrast near-black typography and ink primary actions.
-- **Deep evergreen accents**: Pine green (`#1E6B52`) in light and mint pine (`#6FD3A6`) in dark for on-states, links, and converted statuses.
-- **Dedicated extension pages (Options and Popup)**: Built on React + Tailwind + shadcn/ui.
-- **In-page Dynamic Island pill**: Isolated inside an open Shadow DOM, themed with translucent **Paper & Pine** tokens following the extension Theme setting (`system` | `light` | `dark`) while using the host system font stack.
-
----
-
-## 2. Palette: Paper & Pine
-
-The color system avoids cold blue/zinc tones. Every text/background pair is verified to achieve WCAG 2.1 AA (contrast ratio $\ge 4.5:1$) or AAA:
-
-### Light Theme (Paper Canvas)
-- **Background (`#F7F5F0`)**: Warm, unbleached paper tone.
-- **Raised / Hover (`#EFECE5`)**: Subtle elevated surface for hover states, select menus, and active indicators.
-- **Hairline Divider (`#E2DED4`)**: 1px structural separation.
-- **Text / Foreground (`#191815`)**: Deep natural ink (**16.30:1** contrast on background, AAA).
-- **Muted Metadata (`#67635A`)**: Secondary descriptions and helper labels (**5.49:1** contrast on background, AA).
-- **Accent Pine (`#1E6B52`)**: Reserved for active on-states (switch checked), links, focus ring at ~40% alpha, and converted currency green (**5.88:1** contrast on background, AA).
-- **Warning Amber (`#A15C07`)**: Warnings, stale rate indicators, rate warnings (**4.76:1** contrast, AA).
-- **Danger Crimson (`#B3261E`)**: Destructive actions, rate fetch errors (**6.00:1** contrast, AA).
-
-### Dark Theme (Warm Night Canvas)
-- **Background (`#10100E`)**: Warm obsidian tone (not cold blue/grey).
-- **Raised / Hover (`#181816`)**: Subtle warm elevation for menus, popovers, and hover states.
-- **Hairline Divider (`#2A2926`)**: 1px structural boundary.
-- **Text / Foreground (`#ECE9E2`)**: Soft warm off-white ink (**15.71:1** contrast on background, AAA).
-- **Muted Metadata (`#9B968B`)**: Secondary metadata (**6.47:1** contrast on background, AA).
-- **Accent Mint Pine (`#6FD3A6`)**: Luminous mint pine for active on-states, switches, links, and converted green (**10.47:1** contrast, AAA).
-- **Warning Amber (`#E5A038`)**: Warm golden amber (**8.54:1** contrast on background, AAA).
-- **Danger Coral (`#E87068`)**: Warm muted crimson (**6.30:1** contrast on background, AA).
-
-### Semantic Button & Action Rules
-- **Primary Buttons**: Use **ink** — text color as background (`#191815` with `#F7F5F0` text in light; `#ECE9E2` with `#10100E` text in dark).
-- **Secondary / Ghost Buttons**: Use raised surface on hover (`#EFECE5` in light, `#181816` in dark).
-- **Destructive Buttons**: Use danger color (`#B3261E` in light, `#E87068` in dark).
-- **Accent**: Strictly reserved for on-states (switch checked, links, focus ring at ~40% alpha) and the "converted" green. Never used as a generic card fill or secondary button background.
-- **No Literal Plus in Button Text**: Action buttons must use SVG icons with `aria-hidden="true"` and clean semantic text (e.g. `Add site`), NEVER a literal `+` character in textContent or accessible name, preventing screen-reader stutter bugs (e.g. "+ + Add Rule"). Accessible names must exactly match visible action names.
+**Canji** *(from Hausa `canji`, meaning change or exchange)* uses a tactile, high-contrast visual language inspired by archival paper and precision instruments:
+- **Brand Symbol (`src/ui/components/CanjiLogo.jsx`)**: Optical-cut nested hexagonal mark in three responsive cuts (`small` 2-layer for `<= 20px`, `main` 2-layer for `22px–48px`, and `feature` 3-layer for `>= 64px` with an inner Pine `#1E6B52` / `#6FD3A6` accent).
+- **Warm Surfaces**: Unbleached paper canvas (`#F7F5F0` light) and warm obsidian (`#10100E` dark).
+- **Hairline Division**: Crisp `1px` structural borders (`#E2DED4` light, `#2A2926` dark).
+- **Ink Primary Actions**: Near-black ink (`#191815` light) and warm off-white (`#ECE9E2` dark) for primary buttons and active headings.
+- **Pine Accents**: Evergreen pine (`#1E6B52` light) and luminous mint pine (`#6FD3A6` dark) reserved for checked switches, active conversion status dots, and converted price highlights.
 
 ---
 
-## 3. Typography
+## 2. Color Tokens & WCAG Contrast Compliance
 
-All typography is bundled locally within the extension package (WOFF2 format via `@fontsource`). Remote font requests and CDNs are strictly prohibited under Manifest V3 CSP.
+Every foreground/background pair is tested in `tests/contrast.test.js` and `tests/pill_theme.test.js` to exceed WCAG 2.1 AA ($\ge 4.5:1$):
 
-1. **UI Sans-Serif**:
-   `--font-sans: "Familjen Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;`
-   - Weights: 400 (Regular), 500 (Medium), 600 (SemiBold), 700 (Bold).
-   - Used across all extension pages (Options, Popup, Gallery) for titles, headings, setting labels, button labels, and descriptions.
-2. **Tabular Monospace**:
-   `--font-mono: "Fragment Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;`
-   - Weight: 400 (Regular).
-   - Used for exchange rates, hostnames, currency codes, price numerals, and timestamps.
-3. **In-Page Floating Pill**:
-   `font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;`
-   - Kept strictly to the **system font stack**.
-   - *Rationale*: Injected content scripts cannot load extension custom web fonts into host pages without exposing extension resources via `web_accessible_resources`, which leaks extension fingerprinting to third-party web trackers.
-
-### Type Scale & Leading
-- **12px / 18px (`text-xs`)**: Timestamps, small currency codes, rate providers, badge counts.
-- **13px / 20px (`text-sm`)**: Secondary descriptions, helper text, table captions.
-- **14px / 22px (`text-base`)**: Setting labels, body text, form inputs, button labels.
-- **16px / 24px (`text-md`)**: Section headings, popup titles, modal headings.
-- **22px / 30px (`text-xl`)**: Page headers, large amount displays.
-
-### Typographic Rules
-- **Tabular Numerals**: Apply `font-variant-numeric: tabular-nums; letter-spacing: -0.02em;` on every number, rate, input, badge count, and price string across all surfaces.
-- **Anti-aliasing**: Apply `-webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility;` globally.
-- **Font Features**: Apply `font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";` on proportional UI text.
+| Token | Light Mode | Contrast on Light | Dark Mode | Contrast on Dark |
+|---|---|---|---|---|
+| **Background (`--background`)** | `#F7F5F0` | — | `#10100E` | — |
+| **Raised / Sidebar (`--secondary`, `--sidebar-background`)** | `#EFECE5` | — | `#181816` | — |
+| **Hairline Border (`--border`, `--sidebar-border`)** | `#E2DED4` | — | `#2A2926` | — |
+| **Foreground (`--foreground`)** | `#191815` | **16.30:1** (AAA) | `#ECE9E2` | **15.71:1** (AAA) |
+| **Muted (`--muted-foreground`)** | `#67635A` | **5.49:1** (AA) | `#9B968B` | **6.47:1** (AA) |
+| **Accent Pine (`--accent`)** | `#1E6B52` | **5.88:1** (AA) | `#6FD3A6` | **10.47:1** (AAA) |
+| **Warning (`--warning`)** | `#A15C07` | **4.76:1** (AA) | `#E5A038` | **8.54:1** (AAA) |
+| **Danger (`--destructive`)** | `#B3261E` | **6.00:1** (AA) | `#E87068` | **6.30:1** (AA) |
 
 ---
 
-## 4. Spacing, Shapes & Hairlines
+## 3. Typography & Minimum Font Scale
 
-- **Spacing Scale (4px Base)**:
-  - `4px` (`space-1`), `8px` (`space-2`), `12px` (`space-3`), `16px` (`space-4`), `24px` (`space-6`), `32px` (`space-8`), `48px` (`space-12`).
-- **Radii**:
-  - Controls, inputs, buttons, combobox popovers: **8px** (`--radius: 8px`).
-  - Segmented toggle controls and capsules: **9999px pill** (`rounded-pill`).
-- **Hairlines**:
-  - Pure 1px hairlines (`#E2DED4` light, `#2A2926` dark).
-- **The NO-CARD Rule**:
-  - Boxy cards, nested cards, and drop-shadow containers are **strictly banned** on extension pages.
-  - Sections are separated purely by generous vertical whitespace (`24px–32px`), typographic hierarchy, and subtle 1px hairlines.
+All extension page fonts are bundled locally in WOFF2 format (`@fontsource/familjen-grotesk` and `@fontsource/fragment-mono`). Remote font requests are prohibited.
+
+1. **UI Sans (`--font-sans`)**: `Familjen Grotesk` (`400`, `500`, `600`, `700`) for headings, labels, descriptions, and actions.
+2. **Tabular Monospace (`--font-mono`)**: `Fragment Mono` (`400`) with `font-variant-numeric: tabular-nums` for currency codes, amounts, domains, and timestamps.
+3. **In-Page Toolbar Font Stack**: Uses the host system UI font stack (`-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif`) inside Shadow DOM so no extension font assets need to be exposed via `web_accessible_resources`.
+4. **Minimum Type Scale**: No rendered text in the Popup or Settings page may fall below **`12px` (`text-xs`)** (enforced by automated E2E checks in `tests/e2e/f1-pill-theme.e2e.js`).
 
 ---
 
-## 5. Motion & Performance
+## 4. Extension Surfaces
 
-- **Timing**: 150ms duration with `ease-out` timing function (`transition: all 150ms ease-out`).
-- **Properties**: Transitions are strictly restricted to compositor properties (`opacity`, `transform`).
-- **Layout Thrashing**: Never animate width, height, margin, padding, or `grid-template-columns`.
-- **Accessibility**: Honor `prefers-reduced-motion: reduce` by zeroing transition durations (`transition-duration: 0.01ms !important`).
+### A. Settings Dashboard (`src/options/options.jsx`)
+- **Shell Architecture (`Settings2` Pattern)**:
+  - Unified `Card` (`max-w-4xl`) housing a `SidebarProvider` (`min-h-[600px]`, `--sidebar-width: 14rem`).
+  - Left `Sidebar` (`collapsible="none"`, `self-stretch border-r`) with `SidebarHeader` (`CanjiLockup`), `SidebarContent` (`SETTINGS` group with 6 sections and Phosphor icons: `Faders`, `Coins`, `GlobeHemisphereWest`, `Swatches`, `Archive`, `Compass`), and `SidebarFooter` (`Light` / `Dark` / `System` theme switcher).
+  - Right `<main>` content pane (`flex-1 p-6 sm:p-8`) with section title, description, `<Separator />`, and controls.
+- **General Section**:
+  - 2-column top grid (`grid gap-4 sm:grid-cols-2`) for **Default currency** and **Which dollar is "$"?**, followed by **On new sites** (`Ask` / `Always`) and switch rows (**Show on-page toolbar**, **Round to whole numbers**, **Sound effects**, **Show cryptocurrencies**).
+- **Sites Section**:
+  - **Add a site** form and **Your sites** list with explicit **Convert from** (`Auto-detect` or currency) `→` **to** (`Default (CUR)` or per-site currency) comboboxes, 3-way `Ask | Always | Never` mode control, and inline same-currency warning.
+- **Appearance Section**:
+  - Theme selector and 3-column **Display mode** interactive radio cards (`Replace in place`, `Beside original`, `Replace and highlight`) with stacked `Preview` boxes that never overflow horizontally.
 
----
+### B. Toolbar Popup (`src/popup/popup.jsx`)
+- **Dimensions**: `360px` width, `580px` max height, `16px` (`p-4`) padding.
+- **Header**: `CanjiLockup` (`small` cut) and Settings icon button (`#btn-open-options`, `Faders`).
+- **Explicit `From → To` Converter Block**:
+  - Heading (`Convert prices on <hostname>`) and `Default (CUR)` badge.
+  - Two-column `From` (`#site-currency-override` inside `#from-display`) `→` `To` (`#picker-to-btn`) searchable `CurrencyCombobox` pair synced with `settings.perSite[hostname]`.
+  - 4-column pinned currency quick-select grid (`role="group"`).
+- **Primary Action & Live Status**:
+  - `#btn-convert-toggle` switching between `Convert to <CUR>` and `Show original`.
+  - `#live-status` (`role="status"`, `aria-live="polite"`) with semantic status dot.
+- **Site Rule & Footer**:
+  - Active hostname in `Fragment Mono` with `Ask | Always | Never` segmented control and `Reset` button.
+  - Footer with rate provider/date freshness (`#rates-freshness-text`) and `Settings` link (`#link-options`).
 
-## 6. Page Layout Targets (Step 07 & 08 Specifications)
-
-### Options Page Layout Target (`src/options/`)
-- **Structure**: Two-column layout with a fixed **~220px sidebar navigation** on the left and a **~640px settings column** on the right. Below 760px, the sidebar becomes a horizontally scrollable top nav.
-- **Sidebar Active-State Rule**:
-  - Active item uses the raised background (`#EFECE5` light / `#181816` dark), font-weight 600, and icon in ink foreground (`#191815` light / `#ECE9E2` dark).
-  - Strictly **NO left border, NO accent bar, and NO accent-colored text**.
-  - Hover states use the same raised background at lower strength (`bg-secondary/60`).
-  - Active link carries `aria-current="page"`.
-- **Settings Rows**:
-  - Left: Setting label (`14px font-medium`) + one-line description (`13px text-muted`).
-  - Right: Minimalist control (switch, combobox, input, or toggle-group).
-- **Per-Site Rules List Anatomy**:
-  - Plain list separated by **1px hairlines** (`border-b border-border/60`); zero bordered boxes or cards.
-  - Left: Hostname in Fragment Mono (`font-mono text-xs`). Inherited default behavior displays muted caption `"Uses default (Ask|Always)"`.
-  - Right: Three-way segmented control (`Ask` / `Always` / `Never`), assumed-currency searchable combobox, and ghost Remove button (`Trash2` icon).
-  - "Add site" row: inline domain input + behavior selector + `"Add site"` button (SVG icon, no literal `+` character). Inline validation rejects invalid hostnames and duplicates without modal alerts.
-
-### Toolbar Popup Layout Target (`src/popup/`)
-- **Dimensions**: `360px` fixed width, `560px` max height vertical scroll container, `16px` (`p-4`) internal padding, zero outer or inner container cards.
-- **Header**: Extension brand badge (`fx` in ink), title (`16px font-semibold tracking-tight`), direct icon button (`#btn-open-options`) to Options.
-- **Converter Block**: Sentence-case heading (`"Convert this page to"`), muted `"Default"` badge, plain muted `"Auto-detect"` source indicator (`#from-display`), arrow icon, accessible searchable `CurrencyCombobox` (`h-9`) for page-only target override, and borderless pinned currency quick-chips (`h-7`, `aria-pressed`, selected chip uses `bg-secondary text-foreground font-medium`).
-- **Primary Action**: 1-click toggle button (`#btn-convert-toggle`, `h-11`) switching between `"Convert this page"` (ink primary) and `"Show original"` (secondary ring-inset), with press feedback (`motion-safe:active:scale-[0.98]`).
-- **Live Status Line**: Boxless status line (`#live-status`, `role="status"`) with status dot (`bg-accent` pine when converted, `bg-muted-foreground` neutral when ready, `bg-destructive` on error), live conversion count, exchange rates provider credit, and honest error classification.
-- **Site Rule Block**: Active hostname in Fragment Mono, 3-way segmented control (`Ask` / `Always` / `Never`), inherited default caption (`"Uses default (Ask|Always)"`), Reset button, and optional site-wide assumed currency override combobox.
-- **Unsupported Notice**: Flat warning-tinted banner (`#unsupported-notice`, no border box) displayed on browser system, web store, and restricted extension pages.
-- **Footer**: Live rates freshness info (`Rates: Provider, Date`), manual retry button, keyboard shortcut hint (`Alt+Shift+C`), and direct Options link.
-
----
-
-## 7. Dynamic Island Capsule (`src/content/ui.js`)
-
-The in-page floating pill operates inside an open Shadow DOM root (`#cc-dynamic-island-host`) and remains pure vanilla JavaScript with zero framework dependencies.
-
-- **Placement**: Fixed top-center (`top: 16px; left: 50%; transform: translate3d(-50%, 0, 0)`), `z-index: 2147483647`.
-- **Styling (Theme-Aware Paper & Pine Material, ADR 0015)**: Follows the extension's Theme setting (`system` | `light` | `dark`) via `data-theme` on `.cc-island-container` and `@media (prefers-color-scheme: dark)` fallback when set to `system`. Uses translucent surfaces (`--cc-surface: rgba(247, 245, 240, 0.86)` light / `rgba(24, 24, 22, 0.86)` dark) with `backdrop-filter: blur(18px) saturate(160%)`, hairline border (`1px solid var(--cc-hairline)`), top specular highlight, and solid fallback (`--cc-surface-solid: #F7F5F0` light / `#181816` dark) under `prefers-reduced-transparency: reduce`, `prefers-contrast: more`, or when `backdrop-filter` is unsupported.
-- **Typography**: System font stack (`-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif`). Does not load extension fonts to eliminate host-page tracking exposure.
-- **State Machine**:
-  - `HIDDEN / UNMOUNTED`: Not rendered on pages without detected prices.
-  - `OFFER`: Initial prompt on unconfigured sites with foreign prices (`"Convert to USD?"` with `[Convert]` and `[Not now]`). Never auto-hides on a timer. Scoped Escape key dismisses within shadow root.
-  - `WORKING`: Pulsating neutral dot + `"Converting..."`.
-  - `CONVERTED`: Active resting state. Status dot uses `--cc-accent` (pine `#1E6B52` in light, mint pine `#6FD3A6` in dark, strictly reserved for active conversions), currency pair (`EUR → USD`), and price count badge (`--cc-raised`). Expands on hover/focus to reveal rates, `Original`/`Converted` pill toggle (active segment uses `--cc-accent` / `--cc-accent-fg`), and currency picker.
-  - `ORIGINAL`: Neutral dot + `"Showing original prices"`. Allows 1-click toggle back to `[Converted]`.
-  - `NOTHING_FOUND`: Manual triggers with 0 prices. Dismisses after 4.0s.
-  - `ERROR`: Amber dot + failure reason.
-
----
-
-## 8. Do's and Don'ts
-
-### Do
-- Use the Paper & Pine palette for all extension UI surfaces.
-- Use ink for primary buttons and reserve Pine accent for on-states, switches, and converted indicators.
-- Enforce `font-variant-numeric: tabular-nums; letter-spacing: -0.02em;` on all numbers, rates, and prices.
-- Construct all DOM elements using native APIs or safe React JSX (zero `innerHTML` / `dangerouslySetInnerHTML`).
-- Honor `prefers-reduced-motion: reduce`.
-- Maintain contrast ratio $\ge 4.5:1$ on every text/background pair.
-
-### Don't
-- Never use cold zinc/slate greys.
-- Never use decorative cards-inside-cards or drop-shadow boxes on settings pages.
-- Never use remote fonts, Google Fonts CDN, or external style links.
-- Never use `innerHTML`, `outerHTML`, `insertAdjacentHTML`, or `dangerouslySetInnerHTML`.
-- Never inject React or extension fonts into third-party host web pages. The in-page pill must remain vanilla JS with system fonts.
+### C. In-Page Floating Toolbar (`src/content/ui.js`, `src/content/ui.css`)
+- **Isolation**: Mounted inside an open Shadow DOM root (`#cc-dynamic-island-host`) at `top: 16px; left: 50%; transform: translate3d(-50%, 0, 0)`.
+- **Theme-Aware Material (ADR 0015)**: Uses `--cc-*` custom properties scoped to `.cc-island-container`, honoring `light`, `dark`, and `system` themes before first paint, with solid surface fallbacks for `prefers-reduced-transparency: reduce` and `prefers-contrast: more`.
+- **Modes**:
+  - **Offer (`Ask`) Mode (`.cc-mode-offer`)**: Prompts `Found N CUR prices · Convert to TARGET?` with `[Convert]`, `[Always]`, and `[×]` dismiss buttons.
+  - **Converted Mode (`.cc-mode-converted`)**: Compact pill showing active pine dot, `SRC → TGT`, and converted count badge; expands on hover/focus to reveal `Original` / `Converted` segmented switch, inline currency picker popover, and dismiss button.

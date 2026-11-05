@@ -4,15 +4,19 @@ import { chromium } from 'playwright';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { buildGallery } from '../../build.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '../..');
 const galleryHtmlPath = path.join(REPO_ROOT, 'dist', 'gallery', 'index.html');
 const fileUrl = `file://${galleryHtmlPath.replace(/\\/g, '/')}`;
-const screenshotsDir = path.join(REPO_ROOT, 'docs', 'audits', '2026-10-22-ui-foundation');
+const screenshotsDir = path.join(REPO_ROOT, 'dist', 'test-screenshots');
 
 test('C2 & C3 & C4: Gallery loads in real browser, fonts ready, 0 console errors, CDP glyph coverage, screenshots', async (t) => {
+  if (!fs.existsSync(galleryHtmlPath)) {
+    await buildGallery();
+  }
   assert.ok(fs.existsSync(galleryHtmlPath), 'Gallery index.html must exist in dist/gallery/');
   fs.mkdirSync(screenshotsDir, { recursive: true });
 

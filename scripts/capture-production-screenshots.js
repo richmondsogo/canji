@@ -146,7 +146,7 @@ async function run() {
       await pickerBtn.click();
       await popupPage.waitForTimeout(400);
 
-      const searchInput = popupPage.locator('input[placeholder="Search code or name..."]');
+      const searchInput = popupPage.locator('input[placeholder="Search currencies…"]');
       if (await searchInput.count() > 0) {
         await searchInput.fill('jpy');
         await popupPage.waitForTimeout(400);
@@ -387,7 +387,7 @@ async function run() {
     <span class="pill-to">$270.65</span>
     <span class="pill-tag">Live Rates</span>
   </div>
-  <div class="meta">170+ Currencies · Privacy-First · Paper &amp; Pine</div>
+  <div class="meta">170+ Currencies · Privacy-First · Instant Revert</div>
 </body>
 </html>`;
 
