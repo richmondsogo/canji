@@ -1,97 +1,77 @@
-# Product Context: Canji
+# Product & Architecture Context: Canji
 
-## Overview
-**Canji** ("Prices, in your currency") is a privacy-first, zero-bloat browser extension designed to function as "Google Translate for prices". It detects foreign currency prices on e-commerce websites and international pages, instantly converting them into the user's preferred native currency while preserving the original page layout and styling.
-
-The visual hallmark of the extension is a hardware-inspired, theme-aware **Paper & Pine Dynamic Island pill** that floats unobtrusively at the top of the browser viewport and adapts to Light, Dark, and System themes.
+## 1. Overview
+**Canji** (*"Prices, in your currency"*, from Hausa `canji` meaning change or exchange) is a privacy-first, cross-browser Manifest V3 extension that detects foreign currency prices on web pages and converts them in place using live exchange rates.
 
 ---
 
-## The Three Entry Points
-All conversion requests feed into a single, unified conversion pipeline in the background and content scripts:
+## 2. Entry Points & User Flows
 
-1. **Context Menu** (Right-Click):
-   - Right-click anywhere on a webpage -> Select "Convert prices on this page".
-   - Executes an explicit, manual conversion of the active tab.
-   - Provides immediate visual feedback through the Dynamic Island pill.
+All conversion flows route through a unified pipeline between `src/background.js` and `src/content/content.js`:
 
-2. **Toolbar Popup**:
-   - Click the extension icon in the browser toolbar.
-   - Features a searchable target currency combobox, quick-select pinned chips, a "Convert this page" / "Show original" toggle, per-site assumed currency override ("Prices on this site are in"), and 3-way site mode control ("Never | Ask | Always").
-   - Allows users to configure target currency, per-site behavior, and inspect live rates metadata.
+1. **Automatic Site Rules (`Always` & `Ask` modes)**:
+   - `content.js` runs at `document_idle` on `http/https` pages (and is also triggered by `background.js` on tab updates, SPA URL navigations, tab activation, and browser startup).
+   - It reads `currency_converter_settings_v2` directly from `chrome.storage.local` so cold MV3 service-worker startups on fresh browser launches never delay or drop site rules.
+   - **`Always` mode**: Immediately converts detected prices using the site's configured `From → To` currencies (or global defaults) and attaches a `MutationObserver` + post-hydration checks so prices rendered asynchronously by JavaScript convert automatically and mount the top-center toolbar.
+   - **`Ask` mode**: Scans candidate prices (with a debounced `MutationObserver` for dynamically hydrated pages) and mounts the top-center offer toolbar (`Found N CUR prices. Convert to TARGET? [Convert] [Always] [×]`).
+   - **`Never` mode**: Takes no action on the site.
 
-3. **Configured Auto-Convert (`mode: 'always'`)**:
-   - For sites configured to "Always convert", the background worker automatically injects the conversion engine when the tab finishes loading (`tabs.onUpdated`).
-   - The Dynamic Island pill appears confirming the conversion with one-click restoration.
-   - *(Note: Static `detector.js` dry-run offers for unconfigured `ask` sites are specified in ADR 0012/0013 for the upcoming v2.1.0 release).*
+2. **Toolbar Popup (`src/popup/popup.jsx`)**:
+   - Displays explicit **From** (`Auto-detect` or per-site source currency override) `→` **To** (`Default` or per-site target currency) comboboxes, 8 pinned currency quick-chips, a 1-click **Convert to CUR** / **Show original** toggle, and the site's `Ask | Always | Never` mode control.
+   - All per-site changes sync two-way with `settings.perSite[hostname]` in Settings.
+
+3. **Right-Click Context Menu (`src/background.js`)**:
+   - **Convert prices on this page**: Converts all prices on the active tab.
+   - **Convert "<selection>" to CUR**: Converts a highlighted price string and displays a native desktop notification.
 
 ---
 
-## One-Page Architecture
+## 3. Architecture Diagram
 
-```
+```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│                          Web Browser Tab                               │
+│                          Browser Tab (Top Frame)                       │
 │                                                                        │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │                    content.js (Full Engine)                      │  │
-│  │  - Injected on user action or auto-convert site rules            │  │
-│  │  - PageScanner (two-phase DOM walker & split-price reassembly)   │  │
-│  │  - InPageUI (Theme-aware Dynamic Island pill inside Shadow DOM)  │  │
-│  │  - Byte-for-byte revert fidelity via WeakMap                     │  │
+│  │                    src/content/content.js                        │  │
+│  │  - Self-evaluates site rules on document_idle via storage.local  │  │
+│  │  - PageScanner (src/content/scanner.js):                         │  │
+│  │      • Two-phase DOM walker + innermost-first split-price join   │  │
+│  │      • Open Shadow DOM traversal                                 │  │
+│  │      • WeakMap byte-for-byte revert fidelity                     │  │
+│  │      • Debounced MutationObserver for SPA / async prices         │  │
+│  │  - InPageUI (src/content/ui.js + ui.css):                        │  │
+│  │      • Theme-aware Paper & Pine toolbar inside Shadow DOM        │  │
+│  │      • Offer mode (Ask) & Converted mode capsules                │  │
 │  └──────────────────────────────────┬───────────────────────────────┘  │
 └─────────────────────────────────────┼──────────────────────────────────┘
                                       │
-                                      │ Typed Messages via messaging.js
-                                      ▼                  
+                   chrome.storage & Typed Messages (src/shared/messaging.js)
+                                      ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│                     Background Service Worker                          │
-│                         (background.js)                                │
+│               Background Service Worker (src/background.js)            │
 │                                                                        │
-│  - Central rate caching & deduplication (chrome.storage.local)         │
-│  - 3-Tier exchange rate fallback:                                      │
+│  - 3-Tier RatesEngine (src/shared/rates.js):                           │
 │      1. European Central Bank (Frankfurter API)                        │
 │      2. Fawaz Ahmed Currency API (jsDelivr CDN)                        │
-│      3. Cloudflare Pages Fallback Host                                 │
-│  - Stale-while-revalidate caching (6-hour TTL)                         │
-│  - Site preferences management (mode: 'ask' | 'always' | 'never')      │
-│  - Session suppression (chrome.storage.session)                        │
-│  - Context menu lifecycle & command dispatch                           │
+│      3. Fawaz Ahmed Currency API (Cloudflare Pages) + Offline Fallback │
+│  - SettingsManager (src/shared/settings.js, schema v3)                 │
+│  - Session offer dismissal tracking (chrome.storage.session)           │
+│  - Context menu lifecycle & tab message retry with backoff             │
 └──────────────────────────────────┬─────────────────────────────────────┘
                                    │
               ┌────────────────────┴────────────────────┐
               ▼                                         ▼
    ┌───────────────────────┐                 ┌───────────────────────┐
-   │      popup.js         │                 │      options.js       │
-   │  Toolbar UI & quick   │                 │  Full settings, site  │
-   │  converter calculator │                 │  rules, custom rates  │
+   │  src/popup/popup.jsx  │                 │src/options/options.jsx│
+   │  Explicit From -> To  │                 │ Settings2 Card +      │
+   │  converter & site bar │                 │ Sidebar dashboard     │
    └───────────────────────┘                 └───────────────────────┘
 ```
 
 ---
 
-## Current Status
-- **Current Version**: v2.0.0 in production; transitioning to v2.1.0 specification.
-- **Engine**: Cross-browser Manifest V3 (Chrome, Edge, Brave, Opera, Firefox).
-- **Build Output**: Run `npm run build`, then load `dist/chrome`; `dist/` is not tracked.
-- **DOM Engine**: Two-phase DOM walker with regex boundary parsing, split-price inner-first assembly, and open Shadow DOM traversal with byte-for-byte revert fidelity.
-- **UI System**: Custom theme-aware Paper & Pine Dynamic Island pill with zero runtime frameworks, zero external CSS dependencies, isolated inside an open Shadow DOM root.
-
-- **Site Mode & Rules**: Tri-state site mode (`mode: 'ask' | 'always' | 'never'`) migrated and active in v3 settings schema.
-- **Options Surface**: Rebuilt in React 18 + Tailwind + shadcn/ui (Step 07) following the Paper & Pine design system, with hash routing, local typography (`Familjen Grotesk` + `Fragment Mono`), live storage sync, zero `innerHTML`, and 100% Firefox MV3 parity.
-- **Action Popup Surface**: Restyled in React 18 + Tailwind + shadcn/ui (Step 08) following the Paper & Pine design system, sharing core UI components (`SiteModeControl`, `CurrencyCombobox`), 3-way site mode segmented control, page-scoped target currency overrides (never mutating default settings), honest error classification, and resolved Firefox MV3 content script injection.
-- **Cross-Browser Reliability & Interaction Polish**: Stabilized in Step 09 with decoupled concurrent initialization, bounded exponential backoff on Firefox message delivery, and Pine-aligned converted price highlights.
-- **Dynamic Island Capsule & Theme-Aware Pill (Steps 10 & 11)**: Single-capsule Dynamic Island pill (`src/content/ui.js`, `src/content/ui.css`) themed with Paper & Pine tokens (`--cc-*` on `.cc-island-container`, ADR 0015) that loads the saved extension Theme setting (`system` | `light` | `dark`) before first paint and honors OS `prefers-color-scheme`, `prefers-reduced-transparency`, `prefers-contrast`, and `prefers-reduced-motion`; paired with a decluttered, boxless toolbar popup (`>= 12px` type scale).
-- **Production Design Overhaul (Step 12)**: Standardized typography to 400/500/600 removing overbold text; redesigned switch to tactile 20px micro-switch; repaired combobox contrast from 1.1:1 to >12:1 (WCAG AAA); implemented custom glass popover in the pill; wired 3.5s auto-collapse timer; consolidated manifest permissions.
-- **UI Interaction, Contrast & Cryptocurrency Fixes (Step 13)**: Integrated full cryptocurrency support into the Dynamic Island pill selection popover; upgraded segmented controls to tactile elevated card pills; resolved cmdk search input focus loss during continuous typing; expanded combobox popover width to 280px and eliminated Windows scrollbar symbol clipping.
-- **Production Readiness, Security Hardening & Pre-Flight Audit (Step 14)**: Eliminated `window.postMessage` backdoor in `content.js`; gated `MSG.UPDATE_SETTINGS` against web content script callers in `background.js`; confirmed zero exposed secrets or API keys; updated `package.json` repository URLs to `richmondsogo/currency-convertr`; modernized `README.md` and `CHROMEWEBSTORE.md` with accurate test counts and high-resolution demo images; verified real-world e-commerce pricing patterns (Amazon split-pricing, European comma-decimals, Jumia, Shopify) via automated Playwright suite.
-- **Production Polish & Visual Overhaul (Step 15)**: Refined Paper & Pine visual hierarchy, contrast compliance, and store showcase assets.
-- **UI/UX, Animation & Interaction Overhaul (Step 16)**: Added opt-in Web Audio tactile click synthesis (`src/shared/audio.js`), Apple-style fluid deceleration curves (`240ms cubic-bezier(0.16, 1, 0.3, 1)`), 120ms exit presence on popovers (`cc-exiting`), 44x44px Fitts' Law hit-target slops (`hit-target-44`), predictive rate prefetching on hover/focus, and concentric border radii.
-- **Pre-Production Audit Fixes, Canji Rebrand & Store Asset Verification (Step 17)**: Rebranded the entire extension to **Canji** (`canji` — *"Prices, in your currency"*) using the 3 optical-cut hexagonal symbols (`Small`, `Main`, `Feature`) from `canji-kit`; added a collapsible Quick Scratchpad Calculator and unified site card in the Toolbar Popup; added interactive 3-column Display Mode preview cards and Brand Hero in the Options Dashboard; wired end-to-end `assumedCurrency` (`siteOverride`) and `ambiguousDollar` (`ambiguousDollarSetting`) disambiguation across Popup, Background, Content Script, and Selection Context Menu; enabled in-page hover tooltips on standard text-node prices in `Replace` and `Append` modes (`PageScanner.prototype.getHoverMetadata`); kept Dynamic Island `.cc-expanded` while `.cc-popover-menu` is open with full `ArrowDown`/`ArrowUp` keyboard navigation; repaired `components.json`; regenerated all Chrome Web Store screenshots at exact `1280x800` dimensions.
-- **Auto-Convert & Idempotency**: Consolidated into a single `tabs.onUpdated` mechanism; content script re-injection is strictly idempotent; top-frame isolated.
-- **Price Tokenization**: Trailing ISO codes (`$25 CAD`) and compound prefixes (`US $133.00`) fully consumed.
-
----
-
-## Known Issues & Implementation Gaps
-*(Zero known issues or security vulnerabilities. Production verified and ready for Chrome Web Store & Firefox AMO distribution.)*
+## 4. Production Invariants
+- **Zero `innerHTML`**: `innerHTML`, `outerHTML`, `insertAdjacentHTML`, and `dangerouslySetInnerHTML` are strictly forbidden across all source files (`AGENTS.md`, ADR 0008).
+- **100% Local Bundling**: Compiled via `node build.js` (`esbuild`) into `dist/chrome/`, `dist/firefox/`, and release archives in `dist/packages/`. Zero remote scripts or CDN fonts.
+- **Cross-Browser Parity**: Verified across Chromium (Playwright E2E suite) and Mozilla Firefox MV3 (`tests/firefox-smoke.test.js` and `npm run lint:firefox` with `0 errors, 0 notices`).

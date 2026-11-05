@@ -36,16 +36,15 @@ test('T3 Regression: Context menu installation, listener lifecycle, and action d
     await page.goto('http://shop.test/product');
     await page.waitForLoadState('domcontentloaded');
 
-    // Pre-check: Not converted yet
+    // Pre-check: Not converted yet (may have Ask offer pill mounted, but not converted)
     const preCheck = await page.evaluate(() => {
       const host = document.getElementById('cc-dynamic-island-host');
-      const text = document.body.textContent;
+      const dot = host?.shadowRoot?.querySelector('.cc-status-dot');
       return {
-        hasHost: Boolean(host),
-        hasEur: text.includes('EUR') || text.includes('€')
+        isConverted: Boolean(dot && !dot.classList.contains('cc-status-inactive'))
       };
     });
-    assert.equal(preCheck.hasHost, false, 'Pre-check: pill must not be mounted yet');
+    assert.equal(preCheck.isConverted, false, 'Pre-check: page must not be converted yet');
 
     // 3. Drive the "convert this page" context menu action via Service Worker
     const dispatchResult = await browser.sw.evaluate(async () => {
@@ -70,6 +69,12 @@ test('T3 Regression: Context menu installation, listener lifecycle, and action d
     // 4. Verify in the tab that the handler ran and converted the page
     const hostEl = await page.waitForSelector('#cc-dynamic-island-host', { state: 'attached', timeout: 10000 });
     assert.ok(hostEl, 'Dynamic island host must be mounted after context menu click');
+
+    await page.waitForFunction(() => {
+      const host = document.getElementById('cc-dynamic-island-host');
+      const dot = host?.shadowRoot?.querySelector('.cc-status-dot');
+      return Boolean(dot && !dot.classList.contains('cc-status-inactive'));
+    }, { timeout: 10000 });
 
     const postCheck = await page.evaluate(() => {
       const host = document.getElementById('cc-dynamic-island-host');

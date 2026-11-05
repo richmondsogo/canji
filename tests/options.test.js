@@ -42,17 +42,17 @@ test('options unit: validateDomainInput inline validation rules', () => {
   // Empty input
   const emptyRes = validateDomainInput('   ', existing);
   assert.equal(emptyRes.ok, false);
-  assert.ok(emptyRes.error.includes('Please enter a domain'));
+  assert.ok(emptyRes.error.includes('Please enter a website'));
 
   // Invalid domain without extension
   const invalidRes = validateDomainInput('localhost', existing);
   assert.equal(invalidRes.ok, false);
-  assert.ok(invalidRes.error.includes('valid domain containing an extension'));
+  assert.ok(invalidRes.error.includes("doesn't look like a website"));
 
   // Duplicate rejection
   const dupRes = validateDomainInput('WWW.Amazon.DE', existing);
   assert.equal(dupRes.ok, false);
-  assert.equal(dupRes.error, 'A rule for "amazon.de" already exists');
+  assert.equal(dupRes.error, 'amazon.de is already in your list');
 
   // Valid new domain
   const validRes = validateDomainInput('WWW.Shop.test', existing);
@@ -62,13 +62,13 @@ test('options unit: validateDomainInput inline validation rules', () => {
 
 test('options unit: effective mode caption logic', () => {
   // Inheriting when autoConvertAll is false -> Ask
-  assert.equal(getEffectiveSiteCaption(null, false), 'Uses default (Ask)');
-  assert.equal(getEffectiveSiteCaption({}, false), 'Uses default (Ask)');
-  assert.equal(getEffectiveSiteCaption({ mode: undefined }, false), 'Uses default (Ask)');
+  assert.equal(getEffectiveSiteCaption(null, false), 'Using your default: Ask');
+  assert.equal(getEffectiveSiteCaption({}, false), 'Using your default: Ask');
+  assert.equal(getEffectiveSiteCaption({ mode: undefined }, false), 'Using your default: Ask');
 
   // Inheriting when autoConvertAll is true -> Always
-  assert.equal(getEffectiveSiteCaption(null, true), 'Uses default (Always)');
-  assert.equal(getEffectiveSiteCaption({ mode: undefined }, true), 'Uses default (Always)');
+  assert.equal(getEffectiveSiteCaption(null, true), 'Using your default: Always');
+  assert.equal(getEffectiveSiteCaption({ mode: undefined }, true), 'Using your default: Always');
 
   // Explicit mode set -> caption is empty
   assert.equal(getEffectiveSiteCaption({ mode: 'always' }, false), '');
@@ -118,10 +118,10 @@ test('options unit: import validation and migration round-trip', () => {
   assert.equal(importedV2.perSite['reddit.com'].mode, 'never');
 
   // Corrupted / garbage input
-  assert.throws(() => validateImportContent('NOT A JSON'), /Invalid JSON/);
-  assert.throws(() => validateImportContent('""'), /JSON object/);
-  assert.throws(() => validateImportContent('[]'), /JSON object/);
-  assert.throws(() => validateImportContent('null'), /JSON object/);
+  assert.throws(() => validateImportContent('NOT A JSON'), /isn't valid JSON/);
+  assert.throws(() => validateImportContent('""'), /Canji settings file/);
+  assert.throws(() => validateImportContent('[]'), /Canji settings file/);
+  assert.throws(() => validateImportContent('null'), /Canji settings file/);
 });
 
 test('options unit: site rule mutations (add, change mode, set assumed currency, reset mode, remove)', () => {

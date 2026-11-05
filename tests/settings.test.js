@@ -9,6 +9,7 @@ import {
   normalizeHost,
   getLookupHosts,
   getSiteMode,
+  getSiteCurrencies,
   setSiteMode,
   shouldAutoConvertPage
 } from '../src/shared/settings.js';
@@ -368,3 +369,56 @@ test('settings: SettingsManager load, save, setSiteMode, and perSite overrides',
   const removedRule = await manager.getSiteRule('amazon.ca');
   assert.equal(removedRule, null);
 });
+
+test('settings: getSiteCurrencies and per-site targetCurrency persistence', () => {
+  const settings = migrateSettings({
+    schemaVersion: 3,
+    targetCurrency: 'USD',
+    perSite: {
+      'ebay.com': { mode: 'always', assumedCurrency: 'GBP', targetCurrency: 'NGN' },
+      'shop.test': { assumedCurrency: null, targetCurrency: 'EUR' }
+    }
+  });
+
+  assert.deepEqual(settings.perSite['ebay.com'], {
+    mode: 'always',
+    assumedCurrency: 'GBP',
+    targetCurrency: 'NGN'
+  });
+  assert.deepEqual(settings.perSite['shop.test'], {
+    assumedCurrency: null,
+    targetCurrency: 'EUR'
+  });
+
+  const ebayCurrencies = getSiteCurrencies(settings, 'www.ebay.com');
+  assert.deepEqual(ebayCurrencies, {
+    assumedCurrency: 'GBP',
+    targetCurrency: 'NGN',
+    hasSiteTarget: true,
+    matchedKey: 'ebay.com'
+  });
+
+  const shopCurrencies = getSiteCurrencies(settings, 'shop.test');
+  assert.deepEqual(shopCurrencies, {
+    assumedCurrency: null,
+    targetCurrency: 'EUR',
+    hasSiteTarget: true,
+    matchedKey: 'shop.test'
+  });
+
+  const defaultCurrencies = getSiteCurrencies(settings, 'other.com');
+  assert.deepEqual(defaultCurrencies, {
+    assumedCurrency: null,
+    targetCurrency: 'USD',
+    hasSiteTarget: false,
+    matchedKey: null
+  });
+
+  // setSiteMode preserves targetCurrency when resetting mode
+  setSiteMode(settings, 'ebay.com', null);
+  assert.deepEqual(settings.perSite['ebay.com'], {
+    assumedCurrency: 'GBP',
+    targetCurrency: 'NGN'
+  });
+});
+

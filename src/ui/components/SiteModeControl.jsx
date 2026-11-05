@@ -20,9 +20,9 @@ export function SiteModeControl({
     ? "text-xs h-7 px-3 rounded-[5px] font-medium text-muted-foreground hover:bg-background/60 hover:text-foreground data-[state=on]:text-foreground data-[state=on]:bg-background data-[state=on]:shadow-xs data-[state=on]:border data-[state=on]:border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background transition-[background-color,color,box-shadow,transform] motion-safe:active:scale-[0.98]"
     : "text-xs h-8 px-3.5 rounded-[5px] font-medium text-muted-foreground hover:bg-background/60 hover:text-foreground data-[state=on]:text-foreground data-[state=on]:bg-background data-[state=on]:shadow-xs data-[state=on]:border data-[state=on]:border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background transition-[background-color,color,box-shadow,transform] motion-safe:active:scale-[0.98]";
 
-  const askLabel = domain ? `Ask on ${domain}` : "Mode Ask";
-  const alwaysLabel = domain ? `Always convert ${domain}` : "Mode Always";
-  const neverLabel = domain ? `Never convert ${domain}` : "Mode Never";
+  const askLabel = domain ? `Ask on ${domain}` : "Ask before converting";
+  const alwaysLabel = domain ? `Always convert ${domain}` : "Always convert";
+  const neverLabel = domain ? `Never convert ${domain}` : "Never convert";
 
   return (
     <ToggleGroup

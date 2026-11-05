@@ -9,10 +9,10 @@ export const ERROR_CLASSES = {
 };
 
 export const ERROR_MESSAGES = {
-  [ERROR_CLASSES.RESTRICTED_PAGE]: 'Conversion is unavailable on browser system or restricted pages.',
-  [ERROR_CLASSES.NO_HOST_PERMISSION]: 'Host permission is required for this site. Check extension permissions.',
-  [ERROR_CLASSES.CONTENT_SCRIPT_UNREACHABLE]: 'Could not connect to page. Try reloading the tab.',
-  [ERROR_CLASSES.RATES_UNAVAILABLE]: 'Exchange rates unavailable. Please check your network connection.'
+  [ERROR_CLASSES.RESTRICTED_PAGE]: "Canji can't convert prices on browser or store pages.",
+  [ERROR_CLASSES.NO_HOST_PERMISSION]: 'Canji needs access to this site. Open Settings, then Sites, to allow it.',
+  [ERROR_CLASSES.CONTENT_SCRIPT_UNREACHABLE]: "Couldn't reach this page. Try reloading the tab.",
+  [ERROR_CLASSES.RATES_UNAVAILABLE]: "Couldn't load exchange rates. Check your internet connection."
 };
 
 /**
@@ -20,7 +20,7 @@ export const ERROR_MESSAGES = {
  */
 export function getConversionErrorMessage(errorClass, customMessage = null) {
   if (customMessage) return customMessage;
-  return ERROR_MESSAGES[errorClass] || 'An unexpected error occurred during conversion.';
+  return ERROR_MESSAGES[errorClass] || 'Something went wrong. Please try again.';
 }
 
 /**

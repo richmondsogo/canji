@@ -100,35 +100,56 @@ test('B3 Regression: Auto-convert trigger, hostname routing, and late-rendered p
     assert.equal(subResult.hostCount, 1, 'sub.shop.test must have exactly 1 pill host');
     assert.equal(subResult.hasNgn, true, 'sub.shop.test must auto-convert to NGN');
 
-    // 4. Test other.test -> expected: does NOT auto-convert
+    // 4. Test other.test -> expected: does NOT auto-convert, mounts Ask-mode offer pill
     await page.goto('http://other.test/items');
     await page.waitForTimeout(2000);
 
     const otherResult = await page.evaluate(() => {
       const hosts = document.querySelectorAll('#cc-dynamic-island-host');
+      const island = hosts[0]?.shadowRoot?.querySelector('.cc-dynamic-island');
+      const isOfferMode = Boolean(island && island.classList.contains('cc-mode-offer'));
       const text = document.body.textContent;
       return {
         hostCount: hosts.length,
+        isOfferMode,
         hasNgn: text.includes('NGN')
       };
     });
 
-    assert.equal(otherResult.hostCount, 0, 'other.test must not mount pill host');
-    assert.equal(otherResult.hasNgn, false, 'other.test must not convert');
+    assert.equal(otherResult.hostCount, 1, 'other.test must mount Ask-mode offer pill host');
+    assert.equal(otherResult.isOfferMode, true, 'other.test pill must be in Ask-mode offer state');
+    assert.equal(otherResult.hasNgn, false, 'other.test must not auto-convert');
+
+    // 4b. Test late-hydrated Ask site (late.other.test): prices injected 1500ms after load must still trigger Ask offer pill
+    await page.goto('http://late.other.test/items');
+    await page.waitForTimeout(2600);
+
+    const lateOfferResult = await page.evaluate(() => {
+      const hosts = document.querySelectorAll('#cc-dynamic-island-host');
+      const island = hosts[0]?.shadowRoot?.querySelector('.cc-dynamic-island');
+      const isOfferMode = Boolean(island && island.classList.contains('cc-mode-offer'));
+      return {
+        hostCount: hosts.length,
+        isOfferMode
+      };
+    });
+
+    assert.equal(lateOfferResult.hostCount, 1, 'late.other.test must mount Ask-mode offer pill after async price hydration');
+    assert.equal(lateOfferResult.isOfferMode, true, 'late.other.test pill must be in Ask-mode offer state');
 
     // 5. Test Never rule beats autoConvertAll: true
     await page.goto(`chrome-extension://${browser.extensionId}/options/options.html#general`);
     await page.waitForLoadState('domcontentloaded');
 
     // Select Always for sites without a rule (autoConvertAll = true)
-    await page.locator('button[aria-label="Default Always"]').click();
+    await page.locator('button[aria-label="Always convert on new sites"]').click();
     await page.waitForTimeout(600);
 
     // Switch to Sites section and add rule never.test -> never
     await page.locator('a[href="#sites"]').click();
     await page.waitForSelector('#input-new-site');
     await page.locator('#input-new-site').fill('never.test');
-    await page.locator('button[aria-label="Mode Never"]').click();
+    await page.locator('button[aria-label="Never convert"]').click();
     await page.locator('button[aria-label="Add site"]').click();
     await page.waitForSelector('span.font-mono:has-text("never.test")', { timeout: 5000 });
     await page.waitForFunction(async () => {

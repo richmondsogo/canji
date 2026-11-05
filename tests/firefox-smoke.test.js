@@ -109,7 +109,7 @@ test('Firefox MV3 Smoke: Add-on loads, popup opens, and converts prices on real 
       finalStatus = await driver.executeScript(`
         return document.getElementById('live-status')?.textContent?.trim();
       `);
-      if (finalStatus && finalStatus !== 'Ready to convert' && finalStatus !== 'Scanning and converting...') {
+      if (finalStatus && finalStatus !== 'Ready to convert' && finalStatus !== 'Scanning and converting...' && finalStatus !== 'Converting…') {
         break;
       }
     }

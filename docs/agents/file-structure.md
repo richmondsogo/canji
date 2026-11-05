@@ -1,109 +1,81 @@
 # File & Directory Structure Conventions
 
-This document defines the organization of files and directories in the `currency-convertr` repository.
+This document defines the production directory layout of the **Canji** repository.
 
-```
-currency-convertr/
-├── .agents/                    # Custom project agent configurations & skills
-├── .github/                    # GitHub actions, workflows, issue templates
-├── .gitignore                  # Git ignore definitions
-├── AGENTS.md                   # Agent guidelines, banned skills, zero-innerHTML rule
-├── BUILD_PROTOCOL.md           # Governance protocol and step lifecycle standard
-├── CONTEXT.md                  # High-level architecture, entry points, and status
-├── CHANGELOG.md                # Release version history
-├── CHROMEWEBSTORE.md           # Chrome Web Store submission metadata and store copy
-├── DESIGN.md                   # Canonical design system tokens, typography, and UI specs
-├── INSTALLED_SKILLS.md         # Inventory of locally available agent skills
-├── LICENSE                     # MIT License
-├── PRIVACY_POLICY.md           # User privacy policy and data non-transmission guarantees
-├── README.md                   # Public repository documentation, quickstart, and feature list
-├── build.js                    # esbuild bundler script for Chrome & Firefox MV3
-├── package.json                # Project dependencies, metadata, and scripts
-├── package-lock.json           # Locked dependency tree
+```text
+canji/
+├── .agents/                    # Project-scoped agent workflows & verification skills
+├── .gitignore                  # Git ignore definitions (dist/, node_modules/)
+├── AGENTS.md                   # Repository agent rules, zero-innerHTML policy, commands
+├── BUILD_PROTOCOL.md           # Step planning, branching, verification, and merge protocol
+├── CHANGELOG.md                # Release history
+├── CHROMEWEBSTORE.md           # Chrome Web Store & Firefox AMO store listing copy
+├── CONTEXT.md                  # Architectural overview and runtime data flow
+├── DESIGN.md                   # Paper & Pine design system specification
+├── LICENSE                     # License (All rights reserved)
+├── PRIVACY_POLICY.md           # User privacy policy and zero-telemetry disclosures
+├── README.md                   # Public repository documentation and quickstart guide
+├── build.js                    # esbuild bundler for Chrome & Firefox MV3 bundles
+├── components.json             # shadcn/ui configuration
+├── jsconfig.json               # Path alias configuration (@/* -> ./src/*)
+├── package.json                # Project metadata, scripts, and dependencies
+├── postcss.config.js           # PostCSS & Tailwind pipeline config
+├── tailwind.config.js          # Paper & Pine theme tokens & Tailwind configuration
 │
-├── dist/                       # Compiled extension bundles (tracked on main)
-│   ├── chrome/                 # Manifest V3 unpacked extension directory for Chrome
-│   │   ├── background.js       # Bundled service worker
-│   │   ├── content.js          # Bundled full in-page conversion engine
-│   │   ├── manifest.json       # Generated Chrome MV3 manifest
-│   │   ├── icons/              # Extension icons (16, 48, 96, 128)
-│   │   ├── options/            # Options HTML, CSS, and bundled JS
-│   │   └── popup/              # Popup HTML, CSS, and bundled JS
-│   ├── firefox/                # Manifest V3 unpacked extension directory for Firefox
-│   │   ├── background.js       # Firefox background script
-│   │   ├── content.js          # Bundled full in-page conversion engine
-│   │   ├── manifest.json       # Generated Firefox MV3 manifest (with gecko ID)
-│   │   ├── icons/              # Extension icons
-│   │   ├── options/            # Options HTML, CSS, and bundled JS
-│   │   └── popup/              # Popup HTML, CSS, and bundled JS
-│   └── packages/               # Zipped extension packages ready for store uploads
-│       ├── currency-converter-chrome-v2.0.0.zip
-│       └── currency-converter-firefox-v2.0.0.zip
+├── canji-kit/                  # Official Canji brand icons, lockups, and SVG symbols
+├── screenshots/                # Official store & README screenshots (1280x800 & 440x280)
 │
-├── docs/                       # Project documentation
-│   ├── adr/                    # Architecture Decision Records
-│   │   ├── 0000-template.md    # Standard ADR template
-│   │   └── 0001-...            # Sequentially numbered architectural decisions
-│   ├── agents/                 # Agent operational guides and standards
-│   │   └── file-structure.md   # This document
-│   ├── audits/                 # UI, accessibility, and performance audit reports
-│   │   └── pill-audit.md       # improve-ui audit of the Dynamic Island pill
-│   └── steps/                  # Plan and execution logs for individual steps
-│       ├── 01-snapshot-local-state.md
-│       └── 02-behavior-spec.md
+├── docs/                       # Architecture & engineering documentation
+│   ├── DECISIONS.md            # Index of Architecture Decision Records
+│   ├── adr/                    # Sequentially numbered ADRs (0000–0015)
+│   ├── agents/                 # Repository structure and engineering conventions
+│   ├── steps/                  # Step behavior specs and verification logs (01–19)
+│   └── store/                  # Reviewer notes for Firefox AMO submission
 │
-├── screenshots/                # Visual verification screenshots and store graphics
-│
-├── scripts/                    # Build utilities, data generators, and test verification scripts
-│   ├── generate-currencies.js  # Node.js generator for currencies-data.js
-│   ├── generate_clean_assets.js
+├── scripts/                    # Build, test harness, and screenshot automation scripts
 │   ├── capture-production-screenshots.js
-│   └── verify_*.js             # Automated visual verification scripts
+│   ├── demo-store.html
+│   ├── generate-currencies.js
+│   └── launch-browser.js
 │
-├── src/                        # Primary extension source code (pure ESM)
-│   ├── background.js           # Central background service worker
-│   ├── content/                # In-page execution modules
-│   │   ├── content.js          # Full in-page engine orchestrator
-│   │   ├── scanner.js          # DOM tree walker, split-price assembler, MutationObserver
-│   │   ├── ui.js               # InPageUI Dynamic Island pill class (zero innerHTML)
-│   │   └── ui.css              # Dynamic Island styling and OLED theme
-│   ├── popup/                  # Toolbar popup UI
-│   │   ├── popup.html          # Popup markup
-│   │   ├── popup.js            # Popup logic and quick converter
-│   │   └── popup.css           # Popup styles
-│   ├── options/                # Options & settings UI
-│   │   ├── options.html        # Options page markup
-│   │   ├── options.js          # SettingsManager bridge and site overrides
-│   │   └── options.css         # Options styling
-│   └── shared/                 # Shared cross-context utility modules
-│       ├── browser.js          # Cross-browser chrome/browser API shim
-│       ├── currencies.js       # Currency list utilities and helpers
-│       ├── currencies-data.js  # Static generated currency database (170+ codes)
-│       ├── format.js           # Intl.NumberFormat localized currency formatter
-│       ├── messaging.js        # Typed message definitions and promises
-│       ├── parser.js           # Multi-currency regex parser & DOM metadata inference
-│       ├── rates.js            # 3-Tier fallback rates fetcher and cache manager
-│       └── settings.js         # Settings schema, migrations, and defaults
+├── src/                        # Extension source code
+│   ├── background.js           # MV3 background service worker
+│   ├── content/                # Vanilla JS in-page conversion engine (zero framework overhead)
+│   │   ├── content.js          # Lifecycle orchestrator, auto-convert, and Ask observer
+│   │   ├── scanner.js          # Two-phase DOM walker, split-price assembly, revert WeakMap
+│   │   ├── ui.js               # Shadow DOM on-page toolbar & hover tooltip
+│   │   └── ui.css              # Paper & Pine Shadow DOM styles
+│   ├── icons/                  # Extension PNG icons (16, 32, 48, 128)
+│   ├── options/                # Settings dashboard (React 18 + Tailwind + shadcn/ui)
+│   │   ├── options.html
+│   │   ├── options.jsx         # Settings2 Card + Sidebar dashboard
+│   │   └── theme-boot.js       # Pre-paint theme initializer
+│   ├── popup/                  # Toolbar popup (React 18 + Tailwind + shadcn/ui)
+│   │   ├── popup.html
+│   │   ├── popup.jsx           # Explicit From -> To converter & site rules
+│   │   ├── popup-errors.js     # Error classification helper
+│   │   ├── popup.js            # Re-exports for unit tests
+│   │   └── theme-boot.js       # Pre-paint theme initializer
+│   ├── shared/                 # Cross-context shared modules
+│   │   ├── audio.js            # Web Audio tactile click synthesis
+│   │   ├── browser.js          # Cross-browser chrome/browser API wrapper
+│   │   ├── currencies-data.js  # Static metadata for 170+ fiat & crypto currencies
+│   │   ├── currencies.js       # Currency lookup, TLD, and symbol resolution
+│   │   ├── format.js           # Localized Intl.NumberFormat price formatter
+│   │   ├── messaging.js        # Typed runtime message constants
+│   │   ├── parser.js           # Multi-currency price regex parser & DOM inference
+│   │   ├── rates.js            # 3-tier rate engine, caching, and cross-rate math
+│   │   ├── settings.js         # Settings v3 schema, migrations, and site rule helpers
+│   │   └── theme.js            # Theme resolution and media-query subscription
+│   └── ui/                     # Shared React UI components, hooks, and styles
+│       ├── components/         # Domain components & shadcn/ui primitives
+│       ├── gallery/            # Standalone dev component gallery
+│       ├── hooks/              # Responsive hooks (use-mobile)
+│       ├── lib/                # Site rule validation & class utilities
+│       └── globals.css         # Local WOFF2 @font-face & Paper & Pine CSS variables
 │
-└── tests/                      # Automated test suite (Node.js test runner)
-    ├── fixtures/               # HTML fixture files for integration tests
-    ├── build.test.js           # Manifest structure, permissions, and build validation
-    ├── currencies.test.js      # Metadata and currency code tests
-    ├── format.test.js          # Number formatting and display mode tests
-    ├── parse.test.js           # Standalone parser test script
-    ├── parser.test.js          # Price detection, regex, and DOM inference tests
-    ├── pill_and_options.test.js# UI lifecycle and options unit tests
-    ├── rates.test.js           # Fallback, cross-rates, and cache tests
-    ├── scanner.test.js         # DOM scanning, revert fidelity, and shadow DOM tests
-    └── settings.test.js        # Settings defaults, migrations, and persistence tests
+└── tests/                      # Automated test suites
+    ├── *.test.js               # Unit, DOM, parser, contrast, security & Firefox smoke tests
+    ├── fixtures/               # HTML fixtures for unit and E2E tests
+    └── e2e/                    # Playwright real-browser E2E tests
 ```
-
----
-
-## Directory Conventions
-
-1. **No Root Clutter**: Never create loose scripts, scratchpad files, or temporary artifacts in the root directory. Scratch scripts belong in `scripts/` or your assigned conversation scratch directory.
-2. **Audit Outputs**: All visual, accessibility, or performance audit reports must be saved under `docs/audits/`.
-3. **Step Documentation**: Step logs and implementation specs must be placed under `docs/steps/NN-<slug>.md`.
-4. **Architectural Decisions**: Architectural choices must be recorded in `docs/adr/NNNN-<slug>.md` using `docs/adr/0000-template.md`.
-5. **Product Source Isolation**: All application code lives strictly under `src/`. No production code is authored directly in `dist/`.

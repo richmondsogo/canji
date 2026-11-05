@@ -106,8 +106,51 @@ export function getSiteMode(settings, hostname) {
 }
 
 /**
+ * Resolves effective source (assumed) and target currencies for a hostname.
+ * Returns { assumedCurrency: string|null, targetCurrency: string, hasSiteTarget: boolean, matchedKey: string|null }.
+ */
+export function getSiteCurrencies(settings, hostname) {
+  const s = settings || DEFAULT_SETTINGS;
+  const defaultTarget = s.targetCurrency || DEFAULT_SETTINGS.targetCurrency || 'USD';
+  const lookupHosts = getLookupHosts(hostname);
+
+  if (!lookupHosts.length || !s.perSite || typeof s.perSite !== 'object') {
+    return {
+      assumedCurrency: null,
+      targetCurrency: defaultTarget,
+      hasSiteTarget: false,
+      matchedKey: null
+    };
+  }
+
+  for (const key of lookupHosts) {
+    const rule = s.perSite[key];
+    if (rule && typeof rule === 'object') {
+      const assumedCurrency = typeof rule.assumedCurrency === 'string' && rule.assumedCurrency
+        ? rule.assumedCurrency
+        : null;
+      const hasSiteTarget = typeof rule.targetCurrency === 'string' && Boolean(rule.targetCurrency);
+      const targetCurrency = hasSiteTarget ? rule.targetCurrency : defaultTarget;
+      return {
+        assumedCurrency,
+        targetCurrency,
+        hasSiteTarget,
+        matchedKey: key
+      };
+    }
+  }
+
+  return {
+    assumedCurrency: null,
+    targetCurrency: defaultTarget,
+    hasSiteTarget: false,
+    matchedKey: null
+  };
+}
+
+/**
  * Updates or clears the mode for a given hostname in a settings object.
- * Passing mode=null removes the mode but preserves assumedCurrency;
+ * Passing mode=null removes the mode but preserves assumedCurrency and targetCurrency;
  * the rule is deleted only if nothing remains.
  */
 export function setSiteMode(settings, hostname, mode) {
@@ -122,20 +165,24 @@ export function setSiteMode(settings, hostname, mode) {
   const validModes = ['ask', 'always', 'never'];
   const cleanMode = validModes.includes(mode) ? mode : null;
   const existingRule = settings.perSite[normalized] || {};
+  const assumedCurrency = existingRule.assumedCurrency || null;
+  const targetCurrency = existingRule.targetCurrency || null;
 
   if (cleanMode === null) {
-    const assumedCurrency = existingRule.assumedCurrency || null;
-    if (assumedCurrency) {
-      settings.perSite[normalized] = { assumedCurrency };
+    if (assumedCurrency || targetCurrency) {
+      const nextRule = { assumedCurrency };
+      if (targetCurrency) nextRule.targetCurrency = targetCurrency;
+      settings.perSite[normalized] = nextRule;
     } else {
       delete settings.perSite[normalized];
     }
   } else {
-    const assumedCurrency = existingRule.assumedCurrency || null;
-    settings.perSite[normalized] = {
+    const nextRule = {
       mode: cleanMode,
       assumedCurrency
     };
+    if (targetCurrency) nextRule.targetCurrency = targetCurrency;
+    settings.perSite[normalized] = nextRule;
   }
 
   return settings;
@@ -174,18 +221,24 @@ export function migrateSettings(raw) {
       const validModes = ['ask', 'always', 'never'];
       const mode = validModes.includes(r?.mode) ? r.mode : undefined;
       const assumedCurrency = r?.assumedCurrency || null;
-      if (mode !== undefined || assumedCurrency !== null) {
+      const targetCurrency = typeof r?.targetCurrency === 'string' && r.targetCurrency ? r.targetCurrency : undefined;
+      if (mode !== undefined || assumedCurrency !== null || targetCurrency !== undefined) {
         if (migratedPerSite[normKey]) {
           const existing = migratedPerSite[normKey];
           const mergedMode = mergeSiteModes(existing.mode, mode);
           const mergedCurrency = existing.assumedCurrency || assumedCurrency;
-          migratedPerSite[normKey] = mergedMode !== undefined
+          const mergedTarget = existing.targetCurrency || targetCurrency;
+          const entry = mergedMode !== undefined
             ? { mode: mergedMode, assumedCurrency: mergedCurrency }
             : { assumedCurrency: mergedCurrency };
+          if (mergedTarget) entry.targetCurrency = mergedTarget;
+          migratedPerSite[normKey] = entry;
         } else {
-          migratedPerSite[normKey] = mode !== undefined
+          const entry = mode !== undefined
             ? { mode, assumedCurrency }
             : { assumedCurrency };
+          if (targetCurrency) entry.targetCurrency = targetCurrency;
+          migratedPerSite[normKey] = entry;
         }
       }
     }
@@ -221,19 +274,25 @@ export function migrateSettings(raw) {
     }
 
     const assumedCurrency = (r && r.assumedCurrency) || null;
+    const targetCurrency = (r && typeof r.targetCurrency === 'string' && r.targetCurrency) ? r.targetCurrency : undefined;
 
-    if (mode !== undefined || assumedCurrency !== null) {
+    if (mode !== undefined || assumedCurrency !== null || targetCurrency !== undefined) {
       if (migratedPerSite[normKey]) {
         const existing = migratedPerSite[normKey];
         const mergedMode = mergeSiteModes(existing.mode, mode);
         const mergedCurrency = existing.assumedCurrency || assumedCurrency;
-        migratedPerSite[normKey] = mergedMode !== undefined
+        const mergedTarget = existing.targetCurrency || targetCurrency;
+        const entry = mergedMode !== undefined
           ? { mode: mergedMode, assumedCurrency: mergedCurrency }
           : { assumedCurrency: mergedCurrency };
+        if (mergedTarget) entry.targetCurrency = mergedTarget;
+        migratedPerSite[normKey] = entry;
       } else {
-        migratedPerSite[normKey] = mode !== undefined
+        const entry = mode !== undefined
           ? { mode, assumedCurrency }
           : { assumedCurrency };
+        if (targetCurrency) entry.targetCurrency = targetCurrency;
+        migratedPerSite[normKey] = entry;
       }
     }
   }

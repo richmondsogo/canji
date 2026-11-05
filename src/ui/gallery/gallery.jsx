@@ -161,7 +161,7 @@ export function Gallery() {
                 ₦€
               </span>
               <div>
-                <h1 className="font-semibold text-md tracking-tight">Currency Convertr</h1>
+                <h1 className="font-semibold text-md tracking-tight">Canji</h1>
                 <p className="text-xs text-muted-foreground">UI Foundation & Design System Gallery</p>
               </div>
             </div>
@@ -712,7 +712,7 @@ export function Gallery() {
         <footer className="border-t border-border mt-16 py-6 text-xs text-muted-foreground">
           <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono">
             <div id="build-stamp">
-              Currency Convertr v{typeof __BUILD_VERSION__ !== "undefined" ? __BUILD_VERSION__ : "2.0.0"} ({typeof __BUILD_GIT_SHA__ !== "undefined" ? __BUILD_GIT_SHA__ : "dev"})
+              Canji v{typeof __BUILD_VERSION__ !== "undefined" ? __BUILD_VERSION__ : "2.0.0"} ({typeof __BUILD_GIT_SHA__ !== "undefined" ? __BUILD_GIT_SHA__ : "dev"})
             </div>
             <div>
               Build Time: {typeof __BUILD_TIME__ !== "undefined" ? __BUILD_TIME__ : new Date().toISOString()}
