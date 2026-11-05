@@ -2,6 +2,8 @@
 
 **Status**: Complete  
 **Branch**: `step/20-scanning-performance-optimization`  
+**Pull Request**: [#25](https://github.com/richmondsogo/canji/pull/25)  
+**First Commit**: `f50106e`  
 **Date**: 2026-11-05
 
 ---
@@ -22,7 +24,7 @@ Eliminate main-thread CPU lag caused by Canji's automatic page-load DOM scanning
   - Replaced unfiltered `root.querySelectorAll('span, div, p, b, strong, em, td')` + $O(N^2 \log N)$ `getElementsByTagName('*').length` sorting in `_findSplitPriceElements(root)` with bottom-up ancestor inspection seeded only from text nodes matching `hasCurrencyMarker(val)`, bounded by `countDescendantsUpTo(el, 25)` and sorting only matched split-price elements.
 - `src/content/content.js`:
   - Added `isEvaluatingOffer`, `lastOfferEvalKey`, and `lastOfferResult` deduplication in `performOffer()` so redundant `OFFER_CONVERSION` triggers (`autoEvaluateOnLoad` + `tabs.onUpdated` + `tabs.onActivated`) do not re-run full-DOM `scanCandidates()` when no DOM mutations have occurred on the same URL/target.
-  - Gated `startOfferObserver` follow-up scans (`[600, 1800, 3500]` ms and debounced mutation timer) on `hasNumericMutation` (`nodeMightHaveDigits`), and added `OFFER_OBSERVER_MAX_LIFETIME_MS = 15000` auto-disconnect so `offerObserver` does not run indefinitely when no prices exist.
+  - Gated `startOfferObserver` follow-up scans (`[600, 1800]` ms and debounced mutation timer) on `hasNumericMutation` (`nodeMightHaveDigits`), and added `OFFER_OBSERVER_MAX_LIFETIME_MS = 15000` auto-disconnect so `offerObserver` does not run indefinitely when no prices exist.
 - `tests/scanner.test.js`:
   - Added unit tests verifying `mightContainPrice` coverage across all `EXPLICIT_SYMBOL_MAP`, `AMBIGUOUS_SYMBOL_KEYS`, and `ISO_CODES`, byte-for-byte convert/revert equivalence across all 13 HTML fixtures, and a `< 220ms` performance regression gate on a 3,205-element non-shopping DOM.
 
