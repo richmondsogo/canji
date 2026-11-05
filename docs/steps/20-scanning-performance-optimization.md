@@ -4,6 +4,8 @@
 **Branch**: `step/20-scanning-performance-optimization`  
 **Pull Request**: [#25](https://github.com/richmondsogo/canji/pull/25)  
 **First Commit**: `f50106e`  
+**Last Commit**: `27d92fa`  
+**Merge Commit**: `e054f59`  
 **Date**: 2026-11-05
 
 ---
