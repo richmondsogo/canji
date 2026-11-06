@@ -1,6 +1,6 @@
 # Step 22: Paper & Pine Contrast and Theme Refinements
 
-**Status**: In Progress  
+**Status**: Complete  
 **Branch**: `step/22-paper-and-pine-contrast-and-theme-refinements`  
 **Date**: 2026-11-07  
 
@@ -57,7 +57,7 @@ warnings        4
 ---
 
 ## 3. Provenance & Land Record
-- **Pull Request**: TBD
-- **First Commit SHA**: TBD
-- **Last Commit SHA**: TBD
-- **Merge Commit SHA**: TBD
+- **Pull Request**: [PR #26](https://github.com/richmondsogo/canji/pull/26)
+- **First Commit SHA**: `d07fdfa`
+- **Last Commit SHA**: `2266a74`
+- **Merge Commit SHA**: `b8def42`
