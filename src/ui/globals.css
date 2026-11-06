@@ -191,6 +191,11 @@
     @apply border-border;
   }
 
+  svg path[opacity="0.2"] {
+    opacity: 0.3 !important;
+    transition: fill 0.15s ease-out, opacity 0.15s ease-out;
+  }
+
   body {
     @apply bg-background text-foreground font-sans;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum", "zero";

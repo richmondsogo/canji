@@ -555,7 +555,7 @@ export function PopupApp() {
           aria-label="Open settings"
           className="hit-target-44 h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-secondary/70 rounded-md transition-colors"
         >
-          <Faders weight="regular" className="h-4 w-4" aria-hidden="true" />
+          <Faders weight="regular" className="size-4 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" aria-hidden="true" />
         </Button>
       </header>
 
@@ -761,7 +761,7 @@ export function PopupApp() {
               <div className="flex items-center gap-1.5 min-w-0">
                 <GlobeHemisphereWest
                   weight="duotone"
-                  className="h-3.5 w-3.5 text-muted-foreground shrink-0"
+                  className="size-3.5 text-muted-foreground fill-accent/20"
                   aria-hidden="true"
                 />
                 <h2 id="site-heading" className="text-xs font-medium text-muted-foreground shrink-0">
@@ -813,7 +813,7 @@ export function PopupApp() {
       <Separator />
       <footer className="flex items-center justify-between gap-3 text-xs text-muted-foreground -mt-1">
         <div id="rates-meta" className="flex items-center gap-1.5 min-w-0">
-          <ClockCounterClockwise weight="duotone" className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <ClockCounterClockwise weight="duotone" className="size-3.5 text-muted-foreground fill-accent/20" aria-hidden="true" />
           <span id="rates-freshness-text" className="truncate tabular-nums">
             {ratesFreshnessText}
           </span>
