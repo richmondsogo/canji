@@ -61,9 +61,6 @@ import {
   Swatches,
   Archive,
   Compass,
-  SunDim,
-  MoonStars,
-  Desktop,
   Check,
   CaretUpDown,
   Trash,
@@ -145,19 +142,16 @@ const THEME_OPTIONS = [
     value: "light",
     label: "Light",
     ariaLabel: "Light theme",
-    icon: <SunDim weight="bold" className="h-3.5 w-3.5 shrink-0" />,
   },
   {
     value: "dark",
     label: "Dark",
     ariaLabel: "Dark theme",
-    icon: <MoonStars weight="bold" className="h-3.5 w-3.5 shrink-0" />,
   },
   {
     value: "system",
     label: "System",
     ariaLabel: "System theme",
-    icon: <Desktop weight="bold" className="h-3.5 w-3.5 shrink-0" />,
   },
 ];
 
@@ -579,7 +573,11 @@ export function OptionsApp() {
                                   <Icon
                                     aria-hidden="true"
                                     weight={isActive ? "duotone" : "regular"}
-                                    className="h-4 w-4 shrink-0"
+                                    className={
+                                      isActive
+                                        ? "size-4 shrink-0 text-accent fill-accent/20"
+                                        : "size-4 shrink-0"
+                                    }
                                   />
                                   <span>{sec.title}</span>
                                 </a>
