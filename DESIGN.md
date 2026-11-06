@@ -23,13 +23,13 @@ palette:
     danger: "#E87068"
 typography:
   ui-text:
-    fontFamily: "'Familjen Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
     weights: [400, 500, 600, 700]
   mono:
-    fontFamily: "'Fragment Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
     weights: [400]
   pill-text:
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
     weights: [400, 500, 600]
 scales:
   type: [12, 13, 14, 16, 20]
@@ -80,11 +80,11 @@ Every foreground/background pair is tested in `tests/contrast.test.js` and `test
 
 ## 3. Typography & Minimum Font Scale
 
-All extension page fonts are bundled locally in WOFF2 format (`@fontsource/familjen-grotesk` and `@fontsource/fragment-mono`). Remote font requests are prohibited.
+All extension surfaces use the host device's native UI and monospace font stacks (`ui-sans-serif` and `ui-monospace`). Zero remote or custom webfont files are downloaded or decoded.
 
-1. **UI Sans (`--font-sans`)**: `Familjen Grotesk` (`400`, `500`, `600`, `700`) for headings, labels, descriptions, and actions.
-2. **Tabular Monospace (`--font-mono`)**: `Fragment Mono` (`400`) with `font-variant-numeric: tabular-nums` for currency codes, amounts, domains, and timestamps.
-3. **In-Page Toolbar Font Stack**: Uses the host system UI font stack (`-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif`) inside Shadow DOM so no extension font assets need to be exposed via `web_accessible_resources`.
+1. **UI Sans (`--font-sans`)**: `ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif` (`400`, `500`, `600`, `700`) for headings, labels, descriptions, and actions.
+2. **Tabular Monospace (`--font-mono`)**: `ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace` (`400`) with `font-variant-numeric: tabular-nums` for currency codes, amounts, domains, and timestamps.
+3. **In-Page Toolbar Font Stack**: Uses `ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif` inside Shadow DOM.
 4. **Minimum Type Scale**: No rendered text in the Popup or Settings page may fall below **`12px` (`text-xs`)** (enforced by automated E2E checks in `tests/e2e/f1-pill-theme.e2e.js`).
 
 ---

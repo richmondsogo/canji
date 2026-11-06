@@ -8,7 +8,7 @@ import { Card } from "@/ui/components/ui/card";
 import { Input } from "@/ui/components/ui/input";
 import { Label } from "@/ui/components/ui/label";
 import { Switch } from "@/ui/components/ui/switch";
-import { ToggleGroup, ToggleGroupItem } from "@/ui/components/ui/toggle-group";
+import { SegmentedControl } from "@/ui/components/ui/segmented-control";
 import { Separator } from "@/ui/components/ui/separator";
 import { Badge } from "@/ui/components/ui/badge";
 import { ScrollArea } from "@/ui/components/ui/scroll-area";
@@ -139,6 +139,32 @@ const SECTIONS = [
 
 const SUGGESTED_PINNED = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "NGN", "INR"];
 const DOLLAR_CURRENCIES = ["USD", "CAD", "AUD", "NZD", "SGD", "HKD", "MXN"];
+
+const THEME_OPTIONS = [
+  {
+    value: "light",
+    label: "Light",
+    ariaLabel: "Light theme",
+    icon: <SunDim weight="bold" className="h-3.5 w-3.5 shrink-0" />,
+  },
+  {
+    value: "dark",
+    label: "Dark",
+    ariaLabel: "Dark theme",
+    icon: <MoonStars weight="bold" className="h-3.5 w-3.5 shrink-0" />,
+  },
+  {
+    value: "system",
+    label: "System",
+    ariaLabel: "System theme",
+    icon: <Desktop weight="bold" className="h-3.5 w-3.5 shrink-0" />,
+  },
+];
+
+const NEW_SITE_OPTIONS = [
+  { value: "ask", label: "Ask", ariaLabel: "Ask on new sites" },
+  { value: "always", label: "Always", ariaLabel: "Always convert on new sites" },
+];
 
 export function OptionsApp() {
   const [settings, setSettings] = useState(null);
@@ -567,38 +593,14 @@ export function OptionsApp() {
                 </SidebarContent>
 
                 <SidebarFooter className="border-t border-border/70 p-3">
-                  <ToggleGroup
-                    type="single"
+                  <SegmentedControl
+                    label="Theme"
+                    options={THEME_OPTIONS}
                     value={settings.theme}
                     onValueChange={(val) => val && updateSettings({ theme: val })}
-                    className="w-full justify-between bg-background/80 p-0.5 rounded-lg border border-border/80 gap-0.5"
-                    aria-label="Theme"
-                  >
-                    <ToggleGroupItem
-                      value="light"
-                      aria-label="Light theme"
-                      className="flex-1 h-7 px-2 text-xs gap-1"
-                    >
-                      <SunDim weight="bold" className="h-3.5 w-3.5" />
-                      <span>Light</span>
-                    </ToggleGroupItem>
-                    <ToggleGroupItem
-                      value="dark"
-                      aria-label="Dark theme"
-                      className="flex-1 h-7 px-2 text-xs gap-1"
-                    >
-                      <MoonStars weight="bold" className="h-3.5 w-3.5" />
-                      <span>Dark</span>
-                    </ToggleGroupItem>
-                    <ToggleGroupItem
-                      value="system"
-                      aria-label="System theme"
-                      className="flex-1 h-7 px-2 text-xs gap-1"
-                    >
-                      <Desktop weight="bold" className="h-3.5 w-3.5" />
-                      <span>System</span>
-                    </ToggleGroupItem>
-                  </ToggleGroup>
+                    size="sm"
+                    className="w-full"
+                  />
                 </SidebarFooter>
               </Sidebar>
 
@@ -727,8 +729,9 @@ export function OptionsApp() {
                         </span>
                       </div>
 
-                      <ToggleGroup
-                        type="single"
+                      <SegmentedControl
+                        label="Behavior on new sites"
+                        options={NEW_SITE_OPTIONS}
                         value={settings.autoConvertAll ? "always" : "ask"}
                         onValueChange={async (val) => {
                           if (!val) return;
@@ -751,16 +754,8 @@ export function OptionsApp() {
                             `New sites set to ${isAlways ? "Always" : "Ask"}`
                           );
                         }}
-                        className="bg-secondary/70 p-0.5 rounded-lg border border-border/80 shrink-0 gap-0.5"
-                        aria-label="Behavior on new sites"
-                      >
-                        <ToggleGroupItem value="ask" aria-label="Ask on new sites" className="h-8 px-3.5 text-xs">
-                          Ask
-                        </ToggleGroupItem>
-                        <ToggleGroupItem value="always" aria-label="Always convert on new sites" className="h-8 px-3.5 text-xs">
-                          Always
-                        </ToggleGroupItem>
-                      </ToggleGroup>
+                        className="shrink-0"
+                      />
                     </div>
 
                     <Separator />
@@ -780,6 +775,7 @@ export function OptionsApp() {
                       </div>
                       <Switch
                         id="switch-show-pill"
+                        aria-label="Show on-page toolbar"
                         checked={settings.showInPageBar !== false}
                         onCheckedChange={(checked) => updateSettings({ showInPageBar: checked })}
                       />
@@ -801,6 +797,7 @@ export function OptionsApp() {
                       </div>
                       <Switch
                         id="switch-round-whole"
+                        aria-label="Round to whole numbers"
                         checked={Boolean(settings.roundWhole)}
                         onCheckedChange={(checked) => updateSettings({ roundWhole: checked })}
                       />
@@ -822,6 +819,7 @@ export function OptionsApp() {
                       </div>
                       <Switch
                         id="switch-sound-feedback"
+                        aria-label="Sound effects"
                         checked={Boolean(settings.soundFeedback)}
                         onCheckedChange={(checked) => {
                           updateSettings(
@@ -851,6 +849,7 @@ export function OptionsApp() {
                       </div>
                       <Switch
                         id="switch-show-crypto"
+                        aria-label="Show cryptocurrencies"
                         checked={Boolean(settings.showCrypto)}
                         onCheckedChange={(checked) => updateSettings({ showCrypto: checked })}
                       />
@@ -1021,18 +1020,21 @@ export function OptionsApp() {
                 {/* SECTION 3: SITES */}
                 {currentSection === "sites" && (
                   <div className="flex flex-col gap-6">
-                    {/* Add Site Inline Form with Explicit From -> To */}
-                    <form onSubmit={handleAddSiteRule} className="space-y-3">
-                      <div>
+                    {/* Add Site Composer Card */}
+                    <form
+                      onSubmit={handleAddSiteRule}
+                      className="rounded-xl border border-border bg-secondary/25 p-4 space-y-3.5"
+                    >
+                      <div className="flex flex-col gap-0.5">
                         <Label htmlFor="input-new-site" className="text-sm font-medium text-foreground">
                           Add a site
                         </Label>
                         <p className="text-xs text-muted-foreground">
-                          Set whether Canji converts automatically and which currencies to convert from and to.
+                          Set whether Canji converts automatically and which currencies to use for a website.
                         </p>
                       </div>
 
-                      <div className="flex flex-col sm:flex-row gap-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                         <Input
                           id="input-new-site"
                           aria-label="Website"
@@ -1065,9 +1067,9 @@ export function OptionsApp() {
                         </Button>
                       </div>
 
-                      {/* Optional From -> To row for new site */}
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground pt-0.5">
-                        <span className="font-medium text-foreground">Convert from</span>
+                      {/* Compact From -> To bar for new site */}
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground border-t border-border/60 pt-3">
+                        <span className="font-medium text-foreground">Currencies</span>
                         <CurrencyCombobox
                           value={newSiteCurrency}
                           onChange={setNewSiteCurrency}
@@ -1077,13 +1079,12 @@ export function OptionsApp() {
                           triggerText={newSiteCurrency || "Auto-detect"}
                           ariaLabel="Convert from currency for new site"
                           align="start"
-                          className="h-8 px-2.5 text-xs font-mono bg-background w-[148px]"
+                          className="h-7 px-2.5 text-xs font-mono bg-background w-auto min-w-[132px]"
                           popoverClassName="w-60"
                           scrollHeight="h-48"
                           placeholder="Search currencies…"
                         />
-                        <ArrowRight weight="bold" className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                        <span className="font-medium text-foreground">to</span>
+                        <ArrowRight weight="bold" className="h-3 w-3 shrink-0" aria-hidden="true" />
                         <CurrencyCombobox
                           value={newSiteTargetCurrency}
                           onChange={setNewSiteTargetCurrency}
@@ -1093,7 +1094,7 @@ export function OptionsApp() {
                           triggerText={newSiteTargetCurrency || `Default (${settings.targetCurrency})`}
                           ariaLabel="Convert to currency for new site"
                           align="start"
-                          className="h-8 px-2.5 text-xs font-mono bg-background w-[156px]"
+                          className="h-7 px-2.5 text-xs font-mono bg-background w-auto min-w-[140px]"
                           popoverClassName="w-60"
                           scrollHeight="h-48"
                           placeholder="Search currencies…"
@@ -1112,157 +1113,194 @@ export function OptionsApp() {
                       )}
                     </form>
 
-                    <Separator />
-
-                    {/* Filter and Rules Count */}
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center space-x-2">
-                        <h2 className="text-sm font-medium text-foreground">Your sites</h2>
-                        <Badge variant="secondary" className="font-mono text-xs">
-                          {perSiteEntries.length} {perSiteEntries.length === 1 ? "site" : "sites"}
-                        </Badge>
+                    {/* Your Sites Header & Filter */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-sm font-medium text-foreground">Your sites</h2>
+                          <Badge variant="secondary" className="font-mono text-xs tnum">
+                            {perSiteEntries.length} {perSiteEntries.length === 1 ? "site" : "sites"}
+                          </Badge>
+                        </div>
+                        {perSiteEntries.length > 0 && (
+                          <div className="w-48">
+                            <Input
+                              placeholder="Filter sites…"
+                              value={rulesSearch}
+                              onChange={(e) => setRulesSearch(e.target.value)}
+                              className="h-8 text-xs font-mono bg-background"
+                              aria-label="Filter sites"
+                            />
+                          </div>
+                        )}
                       </div>
-                      {perSiteEntries.length > 3 && (
-                        <div className="w-48">
-                          <Input
-                            placeholder="Filter sites…"
-                            value={rulesSearch}
-                            onChange={(e) => setRulesSearch(e.target.value)}
-                            className="h-8 text-xs font-mono"
-                            aria-label="Filter sites"
-                          />
-                        </div>
-                      )}
-                    </div>
 
-                    {/* Plain List of Site Rules with Explicit From -> To */}
-                    <div className="divide-y divide-border border-y border-border">
-                      {perSiteEntries.length === 0 ? (
-                        <div className="py-8 text-center text-muted-foreground text-sm space-y-1">
-                          <p className="font-medium text-foreground">No site rules yet.</p>
-                          <p className="text-xs">
-                            Canji will {settings.autoConvertAll ? "convert automatically" : "ask first"} on every site until you add one here.
-                          </p>
-                        </div>
-                      ) : filteredSiteEntries.length === 0 ? (
-                        <div className="py-6 text-center text-xs text-muted-foreground">
-                          No sites match "{rulesSearch}".
-                        </div>
-                      ) : (
-                        filteredSiteEntries.map(([host, rule]) => {
-                          const effectiveSiteTarget = rule.targetCurrency || settings.targetCurrency || "USD";
-                          const isSameFromTo =
-                            Boolean(rule.assumedCurrency) &&
-                            rule.assumedCurrency.toUpperCase() === effectiveSiteTarget.toUpperCase();
+                      {/* Unified Bordered Site Rules Table/List */}
+                      <div className="rounded-xl border border-border bg-secondary/15 divide-y divide-border overflow-hidden">
+                        {perSiteEntries.length === 0 ? (
+                          <div className="py-10 px-4 text-center text-muted-foreground text-sm space-y-1">
+                            <p className="font-medium text-foreground">No site rules yet.</p>
+                            <p className="text-xs">
+                              Canji will {settings.autoConvertAll ? "convert automatically" : "ask first"} on every site until you add one above.
+                            </p>
+                          </div>
+                        ) : filteredSiteEntries.length === 0 ? (
+                          <div className="py-8 px-4 text-center text-xs text-muted-foreground">
+                            No sites match "{rulesSearch}".
+                          </div>
+                        ) : (
+                          filteredSiteEntries.map(([host, rule]) => {
+                            const effectiveSiteTarget =
+                              rule.targetCurrency || settings.targetCurrency || "USD";
+                            const isSameFromTo =
+                              Boolean(rule.assumedCurrency) &&
+                              rule.assumedCurrency.toUpperCase() ===
+                                effectiveSiteTarget.toUpperCase();
 
-                          return (
-                            <div
-                              key={host}
-                              className="py-3.5 flex flex-col gap-2.5"
-                            >
-                              {/* Top Row: Hostname + Mode Control + Reset/Remove */}
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 min-w-0 pr-2">
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span className="font-mono text-sm font-semibold text-foreground truncate max-w-[240px]">
-                                        {host}
-                                      </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="font-mono text-xs">{host}</TooltipContent>
-                                  </Tooltip>
-                                  {!rule.mode && (
-                                    <span className="text-xs text-muted-foreground">
-                                      {getEffectiveSiteCaption(rule, settings.autoConvertAll)}
-                                    </span>
-                                  )}
-                                </div>
+                            return (
+                              <div
+                                key={host}
+                                className="px-3.5 py-2.5 flex flex-col gap-2 hover:bg-secondary/35 transition-colors content-auto-row"
+                              >
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                  {/* Left Column: Domain + Compact From -> To Pills */}
+                                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 min-w-0">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="font-mono text-xs sm:text-[13px] font-semibold text-foreground truncate max-w-[190px]">
+                                            {host}
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="font-mono text-xs">
+                                          {host}
+                                        </TooltipContent>
+                                      </Tooltip>
+                                      {!rule.mode && (
+                                        <span className="text-xs text-muted-foreground bg-secondary/80 px-1.5 py-0.5 rounded border border-border/60 whitespace-nowrap">
+                                          {getEffectiveSiteCaption(rule, settings.autoConvertAll)}
+                                        </span>
+                                      )}
+                                    </div>
 
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <SiteModeControl
-                                    value={rule.mode || ""}
-                                    onChange={(val) => handleUpdateSiteMode(host, val)}
-                                    domain={host}
-                                    size="sm"
-                                    ariaLabel={`Conversion mode for ${host}`}
-                                  />
+                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                      <CurrencyCombobox
+                                        value={rule.assumedCurrency || null}
+                                        onChange={(currency) =>
+                                          handleSetAssumedCurrency(host, currency)
+                                        }
+                                        currencies={allCurrencies}
+                                        allowAutoDetect={true}
+                                        autoDetectLabel="Auto-detect"
+                                        triggerText={rule.assumedCurrency || "Auto-detect"}
+                                        ariaLabel={`Currency used on ${host}`}
+                                        align="start"
+                                        className="h-7 px-2 text-xs font-mono bg-background w-auto min-w-[108px]"
+                                        popoverClassName="w-56"
+                                        scrollHeight="h-48"
+                                        placeholder="Search currencies…"
+                                      />
+                                      <ArrowRight
+                                        weight="bold"
+                                        className="h-3 w-3 shrink-0 text-muted-foreground/70"
+                                        aria-hidden="true"
+                                      />
+                                      <CurrencyCombobox
+                                        value={rule.targetCurrency || null}
+                                        onChange={(currency) =>
+                                          handleSetSiteTargetCurrency(host, currency)
+                                        }
+                                        currencies={allCurrencies}
+                                        allowAutoDetect={true}
+                                        autoDetectLabel={`Default (${settings.targetCurrency})`}
+                                        triggerText={
+                                          rule.targetCurrency
+                                            ? rule.targetCurrency
+                                            : `Default (${settings.targetCurrency})`
+                                        }
+                                        ariaLabel={`Target currency for ${host}`}
+                                        align="start"
+                                        className="h-7 px-2 text-xs font-mono bg-background w-auto min-w-[120px]"
+                                        popoverClassName="w-56"
+                                        scrollHeight="h-48"
+                                        placeholder="Search currencies…"
+                                      />
+                                    </div>
+                                  </div>
 
-                                  {rule.mode && (
-                                    <Button
-                                      variant="ghost"
+                                  {/* Right Column: Segmented Mode Control + Icon Actions */}
+                                  <div className="flex items-center gap-1 shrink-0 self-end sm:self-center">
+                                    <SiteModeControl
+                                      value={rule.mode || ""}
+                                      onChange={(val) => handleUpdateSiteMode(host, val)}
+                                      domain={host}
                                       size="sm"
-                                      className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-                                      onClick={() => handleResetSiteMode(host)}
-                                      title="Reset to default"
-                                      aria-label={`Reset ${host} to default`}
-                                    >
-                                      Reset
-                                    </Button>
-                                  )}
+                                      ariaLabel={`Conversion mode for ${host}`}
+                                    />
 
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10"
-                                    onClick={() => handleRemoveSiteRule(host)}
-                                    aria-label={`Remove ${host}`}
-                                  >
-                                    Remove
-                                  </Button>
+                                    {rule.mode && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                            onClick={() => handleResetSiteMode(host)}
+                                            aria-label={`Reset ${host} to default`}
+                                          >
+                                            <ArrowCounterClockwise
+                                              weight="bold"
+                                              className="h-3.5 w-3.5"
+                                              aria-hidden="true"
+                                            />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="text-xs">
+                                          Reset mode to default
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    )}
+
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                          onClick={() => handleRemoveSiteRule(host)}
+                                          aria-label={`Remove ${host}`}
+                                        >
+                                          <Trash
+                                            weight="bold"
+                                            className="h-3.5 w-3.5"
+                                            aria-hidden="true"
+                                          />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent className="text-xs">
+                                        Remove {host}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </div>
                                 </div>
-                              </div>
 
-                              {/* Bottom Row: Explicit From {Auto-detect} -> To {Target Currency} */}
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                <span>Convert from</span>
-                                <CurrencyCombobox
-                                  value={rule.assumedCurrency || null}
-                                  onChange={(currency) => handleSetAssumedCurrency(host, currency)}
-                                  currencies={allCurrencies}
-                                  allowAutoDetect={true}
-                                  autoDetectLabel="Auto-detect"
-                                  triggerText={rule.assumedCurrency || "Auto-detect"}
-                                  ariaLabel={`Currency used on ${host}`}
-                                  align="start"
-                                  className="h-7 px-2.5 text-xs font-mono bg-background w-[136px]"
-                                  popoverClassName="w-56"
-                                  scrollHeight="h-48"
-                                  placeholder="Search currencies…"
-                                />
-                                <ArrowRight weight="bold" className="h-3 w-3 shrink-0" aria-hidden="true" />
-                                <span>to</span>
-                                <CurrencyCombobox
-                                  value={rule.targetCurrency || null}
-                                  onChange={(currency) => handleSetSiteTargetCurrency(host, currency)}
-                                  currencies={allCurrencies}
-                                  allowAutoDetect={true}
-                                  autoDetectLabel={`Default (${settings.targetCurrency})`}
-                                  triggerText={
-                                    rule.targetCurrency
-                                      ? rule.targetCurrency
-                                      : `Default (${settings.targetCurrency})`
-                                  }
-                                  ariaLabel={`Target currency for ${host}`}
-                                  align="start"
-                                  className="h-7 px-2.5 text-xs font-mono bg-background w-[144px]"
-                                  popoverClassName="w-56"
-                                  scrollHeight="h-48"
-                                  placeholder="Search currencies…"
-                                />
+                                {isSameFromTo && (
+                                  <p className="text-xs text-warning flex items-center gap-1.5">
+                                    <WarningCircle
+                                      weight="fill"
+                                      className="h-3.5 w-3.5 shrink-0"
+                                      aria-hidden="true"
+                                    />
+                                    <span>
+                                      From and To are both {effectiveSiteTarget}. Set "From" to Auto-detect unless {host} only shows {effectiveSiteTarget} prices.
+                                    </span>
+                                  </p>
+                                )}
                               </div>
-
-                              {isSameFromTo && (
-                                <p className="text-xs text-warning flex items-center gap-1.5">
-                                  <WarningCircle weight="fill" className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                                  <span>
-                                    From and To are both {effectiveSiteTarget}. Set "Convert from" to Auto-detect unless {host} only shows {effectiveSiteTarget} prices.
-                                  </span>
-                                </p>
-                              )}
-                            </div>
-                          );
-                        })
-                      )}
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1279,23 +1317,14 @@ export function OptionsApp() {
                         </span>
                       </div>
 
-                      <ToggleGroup
-                        type="single"
+                      <SegmentedControl
+                        label="Theme selector"
+                        options={THEME_OPTIONS}
                         value={settings.theme}
                         onValueChange={(val) => val && updateSettings({ theme: val })}
-                        className="bg-secondary/70 p-0.5 rounded-lg border border-border/80 shrink-0 gap-0.5"
-                        aria-label="Theme selector"
-                      >
-                        <ToggleGroupItem value="light" aria-label="Light theme" className="h-8 px-3 text-xs">
-                          <SunDim weight="bold" className="h-3.5 w-3.5 mr-1.5" /> Light
-                        </ToggleGroupItem>
-                        <ToggleGroupItem value="dark" aria-label="Dark theme" className="h-8 px-3 text-xs">
-                          <MoonStars weight="bold" className="h-3.5 w-3.5 mr-1.5" /> Dark
-                        </ToggleGroupItem>
-                        <ToggleGroupItem value="system" aria-label="System theme" className="h-8 px-3 text-xs">
-                          <Desktop weight="bold" className="h-3.5 w-3.5 mr-1.5" /> System
-                        </ToggleGroupItem>
-                      </ToggleGroup>
+                        size="default"
+                        className="shrink-0"
+                      />
                     </div>
 
                     <Separator />

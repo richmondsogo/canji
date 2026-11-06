@@ -6,7 +6,7 @@ import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
 import { Label } from "../components/ui/label"
 import { Switch } from "../components/ui/switch"
-import { ToggleGroup, ToggleGroupItem } from "../components/ui/toggle-group"
+import { SegmentedControl } from "../components/ui/segmented-control"
 import { Separator } from "../components/ui/separator"
 import { Badge } from "../components/ui/badge"
 import { ScrollArea } from "../components/ui/scroll-area"
@@ -168,22 +168,17 @@ export function Gallery() {
 
             <div className="flex items-center space-x-4">
               <span className="text-xs text-muted-foreground">Theme:</span>
-              <ToggleGroup
-                type="single"
+              <SegmentedControl
+                label="Theme"
                 value={theme}
                 onValueChange={(val) => val && setTheme(val)}
-                className="bg-secondary p-1 rounded-lg border border-border"
-              >
-                <ToggleGroupItem value="light" aria-label="Light theme" className="h-7 px-2.5 text-xs">
-                  <Sun className="h-3.5 w-3.5 mr-1" /> Light
-                </ToggleGroupItem>
-                <ToggleGroupItem value="dark" aria-label="Dark theme" className="h-7 px-2.5 text-xs">
-                  <Moon className="h-3.5 w-3.5 mr-1" /> Dark
-                </ToggleGroupItem>
-                <ToggleGroupItem value="system" aria-label="System theme" className="h-7 px-2.5 text-xs">
-                  <Laptop className="h-3.5 w-3.5 mr-1" /> System
-                </ToggleGroupItem>
-              </ToggleGroup>
+                size="sm"
+                options={[
+                  { value: "light", label: "Light", ariaLabel: "Light theme", icon: <Sun className="h-3.5 w-3.5" /> },
+                  { value: "dark", label: "Dark", ariaLabel: "Dark theme", icon: <Moon className="h-3.5 w-3.5" /> },
+                  { value: "system", label: "System", ariaLabel: "System theme", icon: <Laptop className="h-3.5 w-3.5" /> },
+                ]}
+              />
             </div>
           </div>
         </header>
@@ -554,9 +549,10 @@ export function Gallery() {
                       >
                         <span className="font-mono text-xs text-foreground font-medium">{s.domain}</span>
                         <div className="flex items-center space-x-2">
-                          <ToggleGroup
-                            type="single"
+                          <SegmentedControl
+                            label={`Conversion mode for ${s.domain}`}
                             value={s.mode}
+                            size="sm"
                             onValueChange={(val) => {
                               if (!val) return
                               const next = [...sites]
@@ -564,12 +560,12 @@ export function Gallery() {
                               setSites(next)
                               toast.info(`Updated rule for ${s.domain} to ${val.toUpperCase()}`)
                             }}
-                            className="bg-secondary p-0.5 rounded border border-border"
-                          >
-                            <ToggleGroupItem value="ask" aria-label={`Ask conversion behavior for ${s.domain}`} className="text-[11px] h-6 px-2">Ask</ToggleGroupItem>
-                            <ToggleGroupItem value="always" aria-label={`Always convert ${s.domain}`} className="text-[11px] h-6 px-2">Always</ToggleGroupItem>
-                            <ToggleGroupItem value="never" aria-label={`Never convert ${s.domain}`} className="text-[11px] h-6 px-2">Never</ToggleGroupItem>
-                          </ToggleGroup>
+                            options={[
+                              { value: "ask", label: "Ask", ariaLabel: `Ask conversion behavior for ${s.domain}` },
+                              { value: "always", label: "Always", ariaLabel: `Always convert ${s.domain}` },
+                              { value: "never", label: "Never", ariaLabel: `Never convert ${s.domain}` },
+                            ]}
+                          />
 
                           <Button
                             variant="ghost"

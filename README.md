@@ -233,4 +233,4 @@ For full privacy details, see [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
 
 ## License
 
-Copyright © Richmond Sogo. All rights reserved. See [LICENSE](LICENSE) for details.
+Copyright © Richmond Olorunsogo. All rights reserved. See [LICENSE](LICENSE) for details.

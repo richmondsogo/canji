@@ -35,25 +35,24 @@ test('C2 & C3 & C4: Gallery loads in real browser, fonts ready, 0 console errors
 
     await page.goto(fileUrl, { waitUntil: 'networkidle' });
 
-    // 1. Verify document.fonts
-    await t.test('document.fonts loaded successfully with local font families', async () => {
+    // 1. Verify document.fonts and native font stack
+    await t.test('document.fonts ready and body uses native ui-sans-serif and ui-monospace stacks', async () => {
       const fontsData = await page.evaluate(async () => {
         await document.fonts.ready;
-        const list = [];
-        document.fonts.forEach((f) => {
-          list.push({ family: f.family, weight: f.weight, status: f.status });
-        });
+        const bodyFont = getComputedStyle(document.body).fontFamily;
+        const monoEl = document.querySelector('.font-mono');
+        const monoFont = monoEl ? getComputedStyle(monoEl).fontFamily : '';
         return {
-          count: list.length,
-          families: [...new Set(list.map((f) => f.family))],
-          ready: document.fonts.status === 'loaded'
+          ready: document.fonts.status === 'loaded',
+          bodyFont,
+          monoFont
         };
       });
 
       console.log('[Gallery Fonts]:', fontsData);
       assert.ok(fontsData.ready, 'document.fonts.status must be "loaded"');
-      assert.ok(fontsData.families.some(f => f.includes('Familjen Grotesk')), 'Familjen Grotesk must be loaded');
-      assert.ok(fontsData.families.some(f => f.includes('Fragment Mono')), 'Fragment Mono must be loaded');
+      assert.match(fontsData.bodyFont, /ui-sans-serif|system-ui|-apple-system|Segoe UI/i, 'Body must use native ui-sans-serif stack');
+      assert.match(fontsData.monoFont, /ui-monospace|SFMono-Regular|Menlo|Consolas|monospace/i, 'Mono elements must use native ui-monospace stack');
     });
 
     // 2. CDP Glyph Coverage Verification (C2)
