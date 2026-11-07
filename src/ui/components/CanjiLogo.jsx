@@ -49,7 +49,7 @@ export function CanjiSymbol({ size = 20, cut, className = '' }) {
       {geometry.outer.map((d, idx) => (
         <path key={idx} d={d} fill="var(--foreground, #181816)" />
       ))}
-      <path d={geometry.inner} fill="var(--primary, #1E4D3B)" />
+      <path d={geometry.inner} fill="var(--accent, #1E6B52)" />
     </svg>
   );
 }
@@ -65,8 +65,7 @@ export function CanjiLockup({
     <div className={`inline-flex items-center select-none ${gapClassName} ${className}`}>
       <CanjiSymbol size={size} cut={cut} />
       <span
-        className={`font-bold tracking-[-0.03em] leading-none text-foreground ${wordmarkClassName}`}
-        style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif" }}
+        className={`font-sans font-bold tracking-[-0.03em] leading-none text-foreground ${wordmarkClassName}`}
       >
         canji
       </span>

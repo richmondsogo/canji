@@ -63,14 +63,11 @@ import {
   Compass,
   Check,
   CaretUpDown,
-  Trash,
   ArrowSquareOut,
   DownloadSimple,
   UploadSimple,
   ArrowCounterClockwise,
   WarningCircle,
-  PlusCircle,
-  ArrowRight,
 } from "@phosphor-icons/react";
 import { getAllCurrencies, getCurrencyMeta } from "../shared/currencies.js";
 import { MSG } from "../shared/messaging.js";
@@ -83,10 +80,10 @@ import {
   SettingsManager,
 } from "../shared/settings.js";
 import { SiteModeControl } from "@/ui/components/SiteModeControl";
-import { CurrencyCombobox } from "@/ui/components/CurrencyCombobox";
+import { CurrencyCombobox, CurrencyPairChip } from "@/ui/components/CurrencyCombobox";
 import { CanjiSymbol, CanjiLockup } from "@/ui/components/CanjiLogo";
+import { FieldArray } from "@/ui/components/ui/field-array";
 import {
-  getEffectiveSiteCaption,
   validateDomainInput,
   validateImportContent,
 } from "@/ui/lib/site-rules";
@@ -203,7 +200,7 @@ export function OptionsApp() {
   // Sync document.title and URL hash with currentSection
   useEffect(() => {
     const active = SECTIONS.find((s) => s.id === currentSection) || SECTIONS[0];
-    document.title = `${active.title} — Canji`;
+    document.title = active.title;
     if (window.location.hash !== `#${currentSection}`) {
       window.location.hash = `#${currentSection}`;
     }
@@ -359,6 +356,40 @@ export function OptionsApp() {
     setPinnedComboboxOpen(false);
   };
 
+  const handleSwapPinned = (idx, nextCode) => {
+    if (!nextCode) return;
+    const current = [...(settings.pinnedCurrencies || [])];
+    const prevCode = current[idx];
+    if (prevCode === nextCode) return;
+    const existingIdx = current.indexOf(nextCode);
+    if (existingIdx !== -1) {
+      // Swap positions if already pinned
+      current[existingIdx] = prevCode;
+      current[idx] = nextCode;
+      updateSettings({ pinnedCurrencies: current }, `Swapped ${prevCode} and ${nextCode}`);
+    } else {
+      current[idx] = nextCode;
+      updateSettings(
+        { pinnedCurrencies: current },
+        prevCode ? `Replaced ${prevCode} with ${nextCode}` : `Pinned ${nextCode}`
+      );
+    }
+  };
+
+  const handlePinnedRowsChange = (nextRows) => {
+    const current = settings.pinnedCurrencies || [];
+    const nextCodes = nextRows.map((r) => r.value);
+    if (nextCodes.length < current.length) {
+      const removed = current.find((c) => !nextCodes.includes(c));
+      updateSettings(
+        { pinnedCurrencies: nextCodes },
+        removed ? `Unpinned ${removed}` : "Updated pinned currencies"
+      );
+      return;
+    }
+    updateSettings({ pinnedCurrencies: nextCodes }, "Reordered pinned currencies");
+  };
+
   // Handlers for Site Rules
   const handleAddSiteRule = async (e) => {
     e.preventDefault();
@@ -371,11 +402,7 @@ export function OptionsApp() {
     const clean = check.clean;
 
     if (newSiteMode === "always") {
-      const granted = await requestOriginPermission(`https://${clean}/*`);
-      if (!granted) {
-        setNewSiteError(`Canji needs permission to run on ${clean}.`);
-        return;
-      }
+      void requestOriginPermission(`https://${clean}/*`);
     }
 
     const updatedPerSite = { ...(settings.perSite || {}) };
@@ -397,11 +424,7 @@ export function OptionsApp() {
 
   const handleUpdateSiteMode = async (host, mode) => {
     if (mode === "always") {
-      const granted = await requestOriginPermission(`https://${host}/*`);
-      if (!granted) {
-        toast.error(`Canji needs permission to run on ${host}`);
-        return;
-      }
+      void requestOriginPermission(`https://${host}/*`);
     }
     const updated = { ...(settings.perSite || {}) };
     setSiteMode({ perSite: updated }, host, mode);
@@ -548,7 +571,7 @@ export function OptionsApp() {
               style={{ "--sidebar-width": "14rem" }}
             >
               <Sidebar collapsible="none" className="hidden border-r border-border sm:flex">
-                <SidebarHeader className="px-4 pt-5 pb-3">
+                <SidebarHeader className="min-h-[68px] px-4 py-3.5 border-b border-border flex flex-col justify-center">
                   <div className="flex items-center gap-2.5 px-1">
                     <CanjiLockup cut="main" size={24} wordmarkClassName="text-base font-bold" />
                   </div>
@@ -590,7 +613,7 @@ export function OptionsApp() {
                   </SidebarGroup>
                 </SidebarContent>
 
-                <SidebarFooter className="border-t border-border/70 p-3">
+                <SidebarFooter className="border-t border-border p-3">
                   <SegmentedControl
                     label="Theme"
                     options={THEME_OPTIONS}
@@ -603,325 +626,287 @@ export function OptionsApp() {
               </Sidebar>
 
               {/* Main Content Pane */}
-              <main className="flex flex-1 flex-col gap-6 overflow-auto p-6 sm:p-8">
-                <div>
-                  <h1 className="text-base font-semibold tracking-tight text-foreground">
-                    {activeSection.title}
-                  </h1>
-                  <p className="text-muted-foreground text-sm mt-0.5">
-                    {activeSection.description}
-                  </p>
-                </div>
+              <main className="flex flex-1 flex-col overflow-auto">
+                <header className="min-h-[68px] px-6 sm:px-8 py-3.5 border-b border-border flex items-center justify-between gap-4 shrink-0">
+                  <div className="min-w-0">
+                    <h1 className="text-base font-semibold tracking-tight text-foreground leading-tight">
+                      {activeSection.title}
+                    </h1>
+                    <p className="text-muted-foreground text-xs mt-0.5 leading-snug">
+                      {activeSection.description}
+                    </p>
+                  </div>
 
-                <Separator />
+                  {currentSection === "sites" && perSiteEntries.length > 1 && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Input
+                        placeholder="Filter sites…"
+                        value={rulesSearch}
+                        onChange={(e) => setRulesSearch(e.target.value)}
+                        className="h-[32px] w-40 text-xs font-mono bg-background rounded-[8px]"
+                        aria-label="Filter sites"
+                      />
+                    </div>
+                  )}
+                </header>
 
-                {/* SECTION 1: GENERAL */}
-                {currentSection === "general" && (
-                  <div className="flex flex-col gap-6">
-                    {/* 2-Column Grid for Primary Currency Defaults (Settings2 style) */}
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="select-target-currency" className="text-sm font-medium text-foreground">
-                          Default currency
-                        </Label>
-                        <CurrencyCombobox
-                          triggerId="select-target-currency"
-                          value={settings.targetCurrency}
-                          onChange={(code) => {
+                <div className="flex-1 p-6 sm:p-8">
+                  {/* SECTION 1: GENERAL */}
+                  {currentSection === "general" && (
+                    <div className="divide-y divide-border">
+                      {/* 2-Column Grid for Primary Currency Defaults */}
+                      <div className="grid gap-4 sm:grid-cols-2 pb-4">
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="select-target-currency" className="text-sm font-medium text-foreground">
+                            Default currency
+                          </Label>
+                          <CurrencyCombobox
+                            triggerId="select-target-currency"
+                            value={settings.targetCurrency}
+                            onChange={(code) => {
+                              updateSettings(
+                                { targetCurrency: code, lastUsedTarget: code },
+                                `Default currency set to ${code}`
+                              );
+                            }}
+                            currencies={allCurrencies}
+                            ariaLabel="Default currency"
+                            align="start"
+                            className="w-full h-[34px] rounded-[9px]"
+                            scrollHeight="h-60"
+                            placeholder="Search currencies…"
+                          />
+                          <span className="text-muted-foreground text-xs">
+                            Prices convert to this currency unless overridden for a site.
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="select-ambiguous-dollar" className="text-sm font-medium text-foreground">
+                            Which dollar is "$"?
+                          </Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                id="select-ambiguous-dollar"
+                                variant="outline"
+                                role="combobox"
+                                aria-label="Currency used for the dollar sign"
+                                className="w-full justify-between font-mono text-xs h-[34px] rounded-[9px] bg-background"
+                              >
+                                <span className="truncate">
+                                  {settings.ambiguousDollar} — {getCurrencyMeta(settings.ambiguousDollar)?.name || "Dollar"}
+                                </span>
+                                <CaretUpDown weight="bold" className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[240px] p-0" align="end">
+                              <Command>
+                                <CommandList>
+                                  <CommandGroup heading="Dollar currencies">
+                                    {DOLLAR_CURRENCIES.map((code) => {
+                                      const meta = getCurrencyMeta(code);
+                                      return (
+                                        <CommandItem
+                                          key={code}
+                                          data-currency-code={code}
+                                          value={code}
+                                          onSelect={() => {
+                                            updateSettings({ ambiguousDollar: code });
+                                          }}
+                                          onClick={() => {
+                                            updateSettings({ ambiguousDollar: code });
+                                          }}
+                                          className="text-xs font-mono flex items-center justify-between py-1.5 cursor-pointer"
+                                        >
+                                          <div className="flex items-center">
+                                            <Check
+                                              weight="bold"
+                                              className={`mr-2 h-3.5 w-3.5 text-accent ${
+                                                settings.ambiguousDollar === code
+                                                  ? "opacity-100"
+                                                  : "opacity-0"
+                                              }`}
+                                            />
+                                            <span>{code}</span>
+                                            <span className="ml-2 font-sans text-muted-foreground">
+                                              {meta?.symbol}
+                                            </span>
+                                          </div>
+                                          <span className="text-muted-foreground text-xs truncate max-w-[90px]">
+                                            {meta?.name}
+                                          </span>
+                                        </CommandItem>
+                                      );
+                                    })}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                          <span className="text-muted-foreground text-xs">
+                            Used when a page shows "$" without saying which country.
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* On new sites */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3.5">
+                        <div className="flex flex-col gap-0.5 pr-4">
+                          <span className="text-sm font-medium text-foreground">
+                            On new sites
+                          </span>
+                          <span className="text-muted-foreground text-xs">
+                            Ask shows a prompt in the top toolbar first. Always converts automatically.
+                          </span>
+                        </div>
+
+                        <SegmentedControl
+                          label="Behavior on new sites"
+                          options={NEW_SITE_OPTIONS}
+                          value={settings.autoConvertAll ? "always" : "ask"}
+                          onValueChange={async (val) => {
+                            if (!val) return;
+                            const isAlways = val === "always";
+                            if (isAlways) {
+                              void requestOriginPermission("<all_urls>");
+                            }
                             updateSettings(
-                              { targetCurrency: code, lastUsedTarget: code },
-                              `Default currency set to ${code}`
+                              { autoConvertAll: isAlways },
+                              `New sites set to ${isAlways ? "Always" : "Ask"}`
                             );
                           }}
+                          className="shrink-0"
+                        />
+                      </div>
+
+                      {/* Switch Rows */}
+                      <div className="flex items-center justify-between gap-4 py-3.5">
+                        <div className="flex flex-col gap-0.5 pr-4">
+                          <Label
+                            htmlFor="switch-show-pill"
+                            className="text-sm font-medium text-foreground cursor-pointer"
+                          >
+                            Show on-page toolbar
+                          </Label>
+                          <span className="text-muted-foreground text-xs">
+                            Show a small toolbar at the top of the page with conversion controls and prompts.
+                          </span>
+                        </div>
+                        <Switch
+                          id="switch-show-pill"
+                          aria-label="Show on-page toolbar"
+                          checked={settings.showInPageBar !== false}
+                          onCheckedChange={(checked) => updateSettings({ showInPageBar: checked })}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4 py-3.5">
+                        <div className="flex flex-col gap-0.5 pr-4">
+                          <Label
+                            htmlFor="switch-round-whole"
+                            className="text-sm font-medium text-foreground cursor-pointer"
+                          >
+                            Round to whole numbers
+                          </Label>
+                          <span className="text-muted-foreground text-xs">
+                            Hide cents on converted prices (e.g. $25 instead of $25.43).
+                          </span>
+                        </div>
+                        <Switch
+                          id="switch-round-whole"
+                          aria-label="Round to whole numbers"
+                          checked={Boolean(settings.roundWhole)}
+                          onCheckedChange={(checked) => updateSettings({ roundWhole: checked })}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4 py-3.5">
+                        <div className="flex flex-col gap-0.5 pr-4">
+                          <Label
+                            htmlFor="switch-sound-feedback"
+                            className="text-sm font-medium text-foreground cursor-pointer"
+                          >
+                            Sound effects
+                          </Label>
+                          <span className="text-muted-foreground text-xs">
+                            Play a soft sound when prices convert or something goes wrong.
+                          </span>
+                        </div>
+                        <Switch
+                          id="switch-sound-feedback"
+                          aria-label="Sound effects"
+                          checked={Boolean(settings.soundFeedback)}
+                          onCheckedChange={(checked) => {
+                            updateSettings(
+                              { soundFeedback: checked },
+                              `Sound effects ${checked ? "on" : "off"}`
+                            );
+                            if (checked) {
+                              playTactileClick();
+                            }
+                          }}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4 pt-3.5">
+                        <div className="flex flex-col gap-0.5 pr-4">
+                          <Label
+                            htmlFor="switch-show-crypto"
+                            className="text-sm font-medium text-foreground cursor-pointer"
+                          >
+                            Show cryptocurrencies
+                          </Label>
+                          <span className="text-muted-foreground text-xs">
+                            Include Bitcoin, Ethereum and other major crypto in currency lists.
+                          </span>
+                        </div>
+                        <Switch
+                          id="switch-show-crypto"
+                          aria-label="Show cryptocurrencies"
+                          checked={Boolean(settings.showCrypto)}
+                          onCheckedChange={(checked) => updateSettings({ showCrypto: checked })}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SECTION 2: CURRENCIES (Draft 1B — Unified FieldArray with Direct-Swap Combobox Rows) */}
+                  {currentSection === "currencies" && (
+                    <FieldArray
+                      aria-label="Pinned currencies"
+                      hideHeader={true}
+                      rows={settings.pinnedCurrencies.map((code) => ({
+                        id: code,
+                        value: code,
+                      }))}
+                      onRowsChange={handlePinnedRowsChange}
+                      maxRows={8}
+                      minRows={0}
+                      showMove={true}
+                      getMoveUpAriaLabel={(row) => `Move ${row.value} up`}
+                      getMoveDownAriaLabel={(row) => `Move ${row.value} down`}
+                      getDeleteAriaLabel={(row) => `Remove ${row.value} from pinned`}
+                      emptyState={
+                        <div className="py-8 text-center text-xs text-muted-foreground space-y-1">
+                          <p className="font-medium text-foreground text-sm">Nothing pinned yet</p>
+                          <p>Click "Add currency" below or choose a popular pick.</p>
+                        </div>
+                      }
+                      renderRow={(row, idx) => (
+                        <CurrencyCombobox
+                          value={row.value}
+                          onChange={(nextCode) => handleSwapPinned(idx, nextCode)}
                           currencies={allCurrencies}
-                          ariaLabel="Default currency"
+                          ariaLabel={`Pinned currency ${idx + 1} (${row.value})`}
                           align="start"
-                          className="w-full h-9"
-                          scrollHeight="h-60"
+                          className="h-[34px] rounded-[7px] flex-1 text-xs font-mono bg-background border-input"
+                          popoverClassName="w-64"
+                          scrollHeight="h-56"
                           placeholder="Search currencies…"
                         />
-                        <span className="text-muted-foreground text-xs">
-                          Prices convert to this currency unless overridden for a site.
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="select-ambiguous-dollar" className="text-sm font-medium text-foreground">
-                          Which dollar is "$"?
-                        </Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              id="select-ambiguous-dollar"
-                              variant="outline"
-                              role="combobox"
-                              aria-label="Currency used for the dollar sign"
-                              className="w-full justify-between font-mono text-xs h-9 bg-background"
-                            >
-                              <span className="truncate">
-                                {settings.ambiguousDollar} — {getCurrencyMeta(settings.ambiguousDollar)?.name || "Dollar"}
-                              </span>
-                              <CaretUpDown weight="bold" className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[240px] p-0" align="end">
-                            <Command>
-                              <CommandList>
-                                <CommandGroup heading="Dollar currencies">
-                                  {DOLLAR_CURRENCIES.map((code) => {
-                                    const meta = getCurrencyMeta(code);
-                                    return (
-                                      <CommandItem
-                                        key={code}
-                                        data-currency-code={code}
-                                        value={code}
-                                        onSelect={() => {
-                                          updateSettings({ ambiguousDollar: code });
-                                        }}
-                                        onClick={() => {
-                                          updateSettings({ ambiguousDollar: code });
-                                        }}
-                                        className="text-xs font-mono flex items-center justify-between py-1.5 cursor-pointer"
-                                      >
-                                        <div className="flex items-center">
-                                          <Check
-                                            weight="bold"
-                                            className={`mr-2 h-3.5 w-3.5 text-accent ${
-                                              settings.ambiguousDollar === code
-                                                ? "opacity-100"
-                                                : "opacity-0"
-                                            }`}
-                                          />
-                                          <span>{code}</span>
-                                          <span className="ml-2 font-sans text-muted-foreground">
-                                            {meta?.symbol}
-                                          </span>
-                                        </div>
-                                        <span className="text-muted-foreground text-xs truncate max-w-[90px]">
-                                          {meta?.name}
-                                        </span>
-                                      </CommandItem>
-                                    );
-                                  })}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                        <span className="text-muted-foreground text-xs">
-                          Used when a page shows "$" without saying which country.
-                        </span>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* On new sites */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex flex-col gap-0.5 pr-4">
-                        <span className="text-sm font-medium text-foreground">
-                          On new sites
-                        </span>
-                        <span className="text-muted-foreground text-xs">
-                          Ask shows a prompt in the top toolbar first. Always converts automatically.
-                        </span>
-                      </div>
-
-                      <SegmentedControl
-                        label="Behavior on new sites"
-                        options={NEW_SITE_OPTIONS}
-                        value={settings.autoConvertAll ? "always" : "ask"}
-                        onValueChange={async (val) => {
-                          if (!val) return;
-                          const isAlways = val === "always";
-                          if (isAlways && api?.permissions?.request) {
-                            try {
-                              const granted = await new Promise((resolve) => {
-                                api.permissions.request({ origins: ["<all_urls>"] }, resolve);
-                              });
-                              if (!granted) {
-                                toast.error("Permission needed", {
-                                  description: "Allow access to turn on Always.",
-                                });
-                                return;
-                              }
-                            } catch {}
-                          }
-                          updateSettings(
-                            { autoConvertAll: isAlways },
-                            `New sites set to ${isAlways ? "Always" : "Ask"}`
-                          );
-                        }}
-                        className="shrink-0"
-                      />
-                    </div>
-
-                    <Separator />
-
-                    {/* Switch Rows */}
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex flex-col gap-0.5 pr-4">
-                        <Label
-                          htmlFor="switch-show-pill"
-                          className="text-sm font-medium text-foreground cursor-pointer"
-                        >
-                          Show on-page toolbar
-                        </Label>
-                        <span className="text-muted-foreground text-xs">
-                          Show a small toolbar at the top of the page with conversion controls and prompts.
-                        </span>
-                      </div>
-                      <Switch
-                        id="switch-show-pill"
-                        aria-label="Show on-page toolbar"
-                        checked={settings.showInPageBar !== false}
-                        onCheckedChange={(checked) => updateSettings({ showInPageBar: checked })}
-                      />
-                    </div>
-
-                    <Separator />
-
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex flex-col gap-0.5 pr-4">
-                        <Label
-                          htmlFor="switch-round-whole"
-                          className="text-sm font-medium text-foreground cursor-pointer"
-                        >
-                          Round to whole numbers
-                        </Label>
-                        <span className="text-muted-foreground text-xs">
-                          Hide cents on converted prices (e.g. $25 instead of $25.43).
-                        </span>
-                      </div>
-                      <Switch
-                        id="switch-round-whole"
-                        aria-label="Round to whole numbers"
-                        checked={Boolean(settings.roundWhole)}
-                        onCheckedChange={(checked) => updateSettings({ roundWhole: checked })}
-                      />
-                    </div>
-
-                    <Separator />
-
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex flex-col gap-0.5 pr-4">
-                        <Label
-                          htmlFor="switch-sound-feedback"
-                          className="text-sm font-medium text-foreground cursor-pointer"
-                        >
-                          Sound effects
-                        </Label>
-                        <span className="text-muted-foreground text-xs">
-                          Play a soft sound when prices convert or something goes wrong.
-                        </span>
-                      </div>
-                      <Switch
-                        id="switch-sound-feedback"
-                        aria-label="Sound effects"
-                        checked={Boolean(settings.soundFeedback)}
-                        onCheckedChange={(checked) => {
-                          updateSettings(
-                            { soundFeedback: checked },
-                            `Sound effects ${checked ? "on" : "off"}`
-                          );
-                          if (checked) {
-                            playTactileClick();
-                          }
-                        }}
-                      />
-                    </div>
-
-                    <Separator />
-
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex flex-col gap-0.5 pr-4">
-                        <Label
-                          htmlFor="switch-show-crypto"
-                          className="text-sm font-medium text-foreground cursor-pointer"
-                        >
-                          Show cryptocurrencies
-                        </Label>
-                        <span className="text-muted-foreground text-xs">
-                          Include Bitcoin, Ethereum and other major crypto in currency lists.
-                        </span>
-                      </div>
-                      <Switch
-                        id="switch-show-crypto"
-                        aria-label="Show cryptocurrencies"
-                        checked={Boolean(settings.showCrypto)}
-                        onCheckedChange={(checked) => updateSettings({ showCrypto: checked })}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* SECTION 2: CURRENCIES */}
-                {currentSection === "currencies" && (
-                  <div className="flex flex-col gap-6">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h2 className="text-sm font-medium text-foreground">Pinned currencies</h2>
-                          <p className="text-xs text-muted-foreground">
-                            Pinned currencies show up in the popup and the right-click menu.
-                          </p>
-                        </div>
-                        <Badge
-                          variant={settings.pinnedCurrencies.length >= 8 ? "destructive" : "secondary"}
-                          className="font-mono text-xs"
-                        >
-                          {settings.pinnedCurrencies.length} of 8
-                        </Badge>
-                      </div>
-
-                      <div
-                        className="flex flex-wrap gap-2 py-3 border-y border-border min-h-[48px] items-center"
-                        aria-label="Pinned currencies"
-                      >
-                        {settings.pinnedCurrencies.length === 0 ? (
-                          <span className="text-xs text-muted-foreground">
-                            Nothing pinned yet. Search below or tap a suggestion.
-                          </span>
-                        ) : (
-                          settings.pinnedCurrencies.map((code) => {
-                            const meta = getCurrencyMeta(code);
-                            return (
-                              <div
-                                key={code}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-secondary border border-border text-xs text-foreground"
-                              >
-                                <span className="font-mono font-medium">{code}</span>
-                                {meta?.symbol && (
-                                  <span className="text-muted-foreground">({meta.symbol})</span>
-                                )}
-                                <button
-                                  type="button"
-                                  aria-label={`Remove ${code} from pinned`}
-                                  onClick={() => handleRemovePinned(code)}
-                                  className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
-                                >
-                                  <Trash weight="bold" className="h-3 w-3" />
-                                </button>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-
-                      {settings.pinnedCurrencies.length >= 8 && (
-                        <p className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
-                          <WarningCircle weight="bold" className="h-3.5 w-3.5" />
-                          You've pinned the maximum of 8. Unpin one to add another.
-                        </p>
                       )}
-                    </div>
-
-                    <Separator />
-
-                    {/* Add pinned currency combobox */}
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium text-foreground">Add a currency</Label>
-                      <div className="flex gap-3">
+                      renderAdd={({ disabled }) => (
                         <Popover
                           open={pinnedComboboxOpen}
                           onOpenChange={(open) => {
@@ -930,23 +915,17 @@ export function OptionsApp() {
                           }}
                         >
                           <PopoverTrigger asChild>
-                            <Button
+                            <button
                               id="select-add-pinned"
-                              variant="outline"
-                              role="combobox"
-                              disabled={settings.pinnedCurrencies.length >= 8}
+                              type="button"
+                              disabled={disabled}
                               aria-label="Pin a currency"
-                              className="w-[260px] justify-between font-mono text-xs h-9 bg-background"
+                              className="w-full h-[34px] rounded-[9px] border border-dashed border-border bg-secondary/20 font-sans text-xs font-medium text-muted-foreground transition-colors hover:border-accent hover:text-accent hover:bg-[color-mix(in_srgb,var(--accent)_4%,transparent)] disabled:opacity-40 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring motion-reduce:transition-none"
                             >
-                              <span>
-                                {settings.pinnedCurrencies.length >= 8
-                                  ? "Pin limit reached (8)"
-                                  : "Search currencies…"}
-                              </span>
-                              <CaretUpDown weight="bold" className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
-                            </Button>
+                              {disabled ? "Pin limit reached (8 of 8)" : "Add currency"}
+                            </button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-[260px] p-0" align="start">
+                          <PopoverContent className="w-[280px] p-0" align="center">
                             <Command>
                               <CommandInput
                                 placeholder="Search by code or name…"
@@ -958,7 +937,7 @@ export function OptionsApp() {
                                 <CommandEmpty className="py-4 text-center text-xs text-muted-foreground">
                                   No matching currency.
                                 </CommandEmpty>
-                                <CommandGroup heading="More currencies">
+                                <CommandGroup heading="Available currencies">
                                   <ScrollArea className="h-56">
                                     {availableUnpinnedCurrencies.map((c) => (
                                       <CommandItem
@@ -971,7 +950,7 @@ export function OptionsApp() {
                                       >
                                         <div className="flex items-center min-w-0">
                                           <span className="font-medium text-foreground">{c.code}</span>
-                                          <span className="ml-2 font-sans text-muted-foreground truncate max-w-[120px]">
+                                          <span className="ml-2 font-sans text-muted-foreground truncate max-w-[130px]">
                                             {c.name}
                                           </span>
                                         </div>
@@ -986,170 +965,124 @@ export function OptionsApp() {
                             </Command>
                           </PopoverContent>
                         </Popover>
-                      </div>
-                    </div>
-
-                    {/* Quick suggestions */}
-                    <div className="space-y-2">
-                      <span className="text-xs text-muted-foreground block">Popular picks</span>
-                      <div className="flex flex-wrap gap-2">
-                        {SUGGESTED_PINNED.map((code) => {
-                          const isPinned = settings.pinnedCurrencies.includes(code);
-                          if (isPinned) return null;
-                          return (
-                            <Button
-                              key={code}
-                              variant="secondary"
-                              size="sm"
-                              disabled={settings.pinnedCurrencies.length >= 8}
-                              onClick={() => handleAddPinned(code)}
-                              className="h-7 text-xs font-mono"
-                              aria-label={`Pin ${code}`}
-                            >
-                              {code}
-                            </Button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* SECTION 3: SITES */}
-                {currentSection === "sites" && (
-                  <div className="flex flex-col gap-6">
-                    {/* Add Site Composer Card */}
-                    <form
-                      onSubmit={handleAddSiteRule}
-                      className="rounded-xl border border-border bg-secondary/25 p-4 space-y-3.5"
-                    >
-                      <div className="flex flex-col gap-0.5">
-                        <Label htmlFor="input-new-site" className="text-sm font-medium text-foreground">
-                          Add a site
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Set whether Canji converts automatically and which currencies to use for a website.
-                        </p>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                        <Input
-                          id="input-new-site"
-                          aria-label="Website"
-                          placeholder="Website (e.g. ebay.com or amazon.de)"
-                          value={newSiteDomain}
-                          aria-invalid={Boolean(newSiteError)}
-                          aria-describedby={newSiteError ? "new-site-error-msg" : undefined}
-                          onChange={(e) => {
-                            setNewSiteDomain(e.target.value);
-                            if (newSiteError) setNewSiteError("");
-                          }}
-                          className="font-mono text-xs h-9 bg-background flex-1"
-                        />
-
-                        <SiteModeControl
-                          value={newSiteMode}
-                          onChange={setNewSiteMode}
-                          size="default"
-                          ariaLabel="Conversion mode for the new site"
-                        />
-
-                        <Button
-                          type="submit"
-                          size="sm"
-                          aria-label="Add site"
-                          className="h-9 text-xs px-3.5 shrink-0"
-                        >
-                          <PlusCircle weight="bold" className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
-                          Add site
-                        </Button>
-                      </div>
-
-                      {/* Compact From -> To bar for new site */}
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground border-t border-border/60 pt-3">
-                        <span className="font-medium text-foreground">Currencies</span>
-                        <CurrencyCombobox
-                          value={newSiteCurrency}
-                          onChange={setNewSiteCurrency}
-                          currencies={allCurrencies}
-                          allowAutoDetect={true}
-                          autoDetectLabel="Auto-detect"
-                          triggerText={newSiteCurrency || "Auto-detect"}
-                          ariaLabel="Convert from currency for new site"
-                          align="start"
-                          className="h-7 px-2.5 text-xs font-mono bg-background w-auto min-w-[132px]"
-                          popoverClassName="w-60"
-                          scrollHeight="h-48"
-                          placeholder="Search currencies…"
-                        />
-                        <ArrowRight weight="bold" className="h-3 w-3 shrink-0" aria-hidden="true" />
-                        <CurrencyCombobox
-                          value={newSiteTargetCurrency}
-                          onChange={setNewSiteTargetCurrency}
-                          currencies={allCurrencies}
-                          allowAutoDetect={true}
-                          autoDetectLabel={`Default (${settings.targetCurrency})`}
-                          triggerText={newSiteTargetCurrency || `Default (${settings.targetCurrency})`}
-                          ariaLabel="Convert to currency for new site"
-                          align="start"
-                          className="h-7 px-2.5 text-xs font-mono bg-background w-auto min-w-[140px]"
-                          popoverClassName="w-60"
-                          scrollHeight="h-48"
-                          placeholder="Search currencies…"
-                        />
-                      </div>
-
-                      {newSiteError && (
-                        <p
-                          id="new-site-error-msg"
-                          role="alert"
-                          className="text-xs text-destructive font-medium flex items-center gap-1 pt-0.5"
-                        >
-                          <WarningCircle weight="bold" className="h-3.5 w-3.5" aria-hidden="true" />
-                          {newSiteError}
-                        </p>
                       )}
-                    </form>
-
-                    {/* Your Sites Header & Filter */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-sm font-medium text-foreground">Your sites</h2>
-                          <Badge variant="secondary" className="font-mono text-xs tnum">
-                            {perSiteEntries.length} {perSiteEntries.length === 1 ? "site" : "sites"}
-                          </Badge>
-                        </div>
-                        {perSiteEntries.length > 0 && (
-                          <div className="w-48">
-                            <Input
-                              placeholder="Filter sites…"
-                              value={rulesSearch}
-                              onChange={(e) => setRulesSearch(e.target.value)}
-                              className="h-8 text-xs font-mono bg-background"
-                              aria-label="Filter sites"
-                            />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Unified Bordered Site Rules Table/List */}
-                      <div className="rounded-xl border border-border bg-secondary/15 divide-y divide-border overflow-hidden">
-                        {perSiteEntries.length === 0 ? (
-                          <div className="py-10 px-4 text-center text-muted-foreground text-sm space-y-1">
-                            <p className="font-medium text-foreground">No site rules yet.</p>
-                            <p className="text-xs">
-                              Canji will {settings.autoConvertAll ? "convert automatically" : "ask first"} on every site until you add one above.
+                      footer={
+                        <div className="space-y-2.5 pt-1">
+                          {settings.pinnedCurrencies.length >= 8 && (
+                            <p className="text-xs text-warning font-medium flex items-center gap-1.5">
+                              <WarningCircle weight="bold" className="h-3.5 w-3.5 shrink-0" />
+                              You've pinned the maximum of 8. Unpin one to add another.
                             </p>
-                          </div>
-                        ) : filteredSiteEntries.length === 0 ? (
-                          <div className="py-8 px-4 text-center text-xs text-muted-foreground">
-                            No sites match "{rulesSearch}".
-                          </div>
-                        ) : (
-                          filteredSiteEntries.map(([host, rule]) => {
+                          )}
+                          {SUGGESTED_PINNED.some((code) => !settings.pinnedCurrencies.includes(code)) && (
+                            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                              <span className="text-xs text-muted-foreground mr-1">
+                                Popular picks:
+                              </span>
+                              {SUGGESTED_PINNED.map((code) => {
+                                if (settings.pinnedCurrencies.includes(code)) return null;
+                                return (
+                                  <Button
+                                    key={code}
+                                    variant="secondary"
+                                    size="sm"
+                                    disabled={settings.pinnedCurrencies.length >= 8}
+                                    onClick={() => handleAddPinned(code)}
+                                    className="h-[30px] rounded-[7px] px-2.5 text-xs font-mono"
+                                    aria-label={`Pin ${code}`}
+                                  >
+                                    {code}
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      }
+                    />
+                  )}
+
+                  {/* SECTION 3: SITES (Type 4 — Calm Single-Chip Currency Pair + Full-Focus SegmentedControl) */}
+                  {currentSection === "sites" && (
+                    <div className="flex flex-col">
+                      {/* Clean Flat Top Add-Site Bar */}
+                      <form
+                        onSubmit={handleAddSiteRule}
+                        className="pb-4 border-b border-border space-y-2"
+                      >
+                        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                          <Input
+                            id="input-new-site"
+                            aria-label="Website"
+                            placeholder="Website (e.g. ebay.com)"
+                            value={newSiteDomain}
+                            aria-invalid={Boolean(newSiteError)}
+                            aria-describedby={newSiteError ? "new-site-error-msg" : undefined}
+                            onChange={(e) => {
+                              setNewSiteDomain(e.target.value);
+                              if (newSiteError) setNewSiteError("");
+                            }}
+                            className="font-mono text-xs h-[34px] rounded-[9px] bg-background border-border flex-1 min-w-[140px]"
+                          />
+
+                          <CurrencyPairChip
+                            fromValue={newSiteCurrency}
+                            onFromChange={setNewSiteCurrency}
+                            toValue={newSiteTargetCurrency}
+                            onToChange={setNewSiteTargetCurrency}
+                            defaultTargetCurrency={settings.targetCurrency}
+                            currencies={allCurrencies}
+                            fromAriaLabel="Convert from currency for new site"
+                            toAriaLabel="Convert to currency for new site"
+                          />
+
+                          <SiteModeControl
+                            value={newSiteMode}
+                            onChange={setNewSiteMode}
+                            size="sm"
+                            ariaLabel="Conversion mode for the new site"
+                          />
+
+                          <Button
+                            type="submit"
+                            aria-label="Add site"
+                            className="h-[34px] rounded-[9px] px-3.5 text-xs font-medium bg-primary text-primary-foreground shadow-pine-button hover:bg-primary/90 shrink-0"
+                          >
+                            Add site
+                          </Button>
+                        </div>
+
+                        {newSiteError && (
+                          <p
+                            id="new-site-error-msg"
+                            role="alert"
+                            className="text-xs text-destructive font-medium flex items-center gap-1.5"
+                          >
+                            <WarningCircle weight="bold" className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            <span>{newSiteError}</span>
+                          </p>
+                        )}
+                      </form>
+
+                      {/* Site Rules List */}
+                      {perSiteEntries.length === 0 ? (
+                        <div className="py-10 text-center text-muted-foreground text-xs space-y-1">
+                          <p className="font-medium text-foreground text-sm">No site rules yet</p>
+                          <p>
+                            Canji will {settings.autoConvertAll ? "convert automatically" : "ask first"} on every site unless you add a website above.
+                          </p>
+                        </div>
+                      ) : filteredSiteEntries.length === 0 ? (
+                        <div className="py-10 text-center text-xs text-muted-foreground">
+                          No sites match "{rulesSearch}".
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-border" role="list" aria-label="Site rules">
+                          {filteredSiteEntries.map(([host, rule]) => {
                             const effectiveSiteTarget =
                               rule.targetCurrency || settings.targetCurrency || "USD";
+                            const effectiveSiteMode =
+                              rule.mode || (settings.autoConvertAll ? "always" : "ask");
                             const isSameFromTo =
                               Boolean(rule.assumedCurrency) &&
                               rule.assumedCurrency.toUpperCase() ===
@@ -1158,445 +1091,382 @@ export function OptionsApp() {
                             return (
                               <div
                                 key={host}
-                                className="px-3.5 py-2.5 flex flex-col gap-2 hover:bg-secondary/35 transition-colors content-auto-row"
+                                role="listitem"
+                                className="py-3 flex flex-col gap-1.5"
                               >
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                                  {/* Left Column: Domain + Compact From -> To Pills */}
-                                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 min-w-0">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <span className="font-mono text-xs sm:text-[13px] font-semibold text-foreground truncate max-w-[190px]">
-                                            {host}
-                                          </span>
-                                        </TooltipTrigger>
-                                        <TooltipContent className="font-mono text-xs">
+                                <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <GlobeHemisphereWest
+                                      weight="duotone"
+                                      className="size-4 text-muted-foreground fill-accent/20 shrink-0"
+                                      aria-hidden="true"
+                                    />
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="font-mono text-xs font-semibold text-foreground truncate">
                                           {host}
-                                        </TooltipContent>
-                                      </Tooltip>
-                                      {!rule.mode && (
-                                        <span className="text-xs text-muted-foreground bg-secondary/80 px-1.5 py-0.5 rounded border border-border/60 whitespace-nowrap">
-                                          {getEffectiveSiteCaption(rule, settings.autoConvertAll)}
                                         </span>
-                                      )}
-                                    </div>
-
-                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                      <CurrencyCombobox
-                                        value={rule.assumedCurrency || null}
-                                        onChange={(currency) =>
-                                          handleSetAssumedCurrency(host, currency)
-                                        }
-                                        currencies={allCurrencies}
-                                        allowAutoDetect={true}
-                                        autoDetectLabel="Auto-detect"
-                                        triggerText={rule.assumedCurrency || "Auto-detect"}
-                                        ariaLabel={`Currency used on ${host}`}
-                                        align="start"
-                                        className="h-7 px-2 text-xs font-mono bg-background w-auto min-w-[108px]"
-                                        popoverClassName="w-56"
-                                        scrollHeight="h-48"
-                                        placeholder="Search currencies…"
-                                      />
-                                      <ArrowRight
-                                        weight="bold"
-                                        className="h-3 w-3 shrink-0 text-muted-foreground/70"
-                                        aria-hidden="true"
-                                      />
-                                      <CurrencyCombobox
-                                        value={rule.targetCurrency || null}
-                                        onChange={(currency) =>
-                                          handleSetSiteTargetCurrency(host, currency)
-                                        }
-                                        currencies={allCurrencies}
-                                        allowAutoDetect={true}
-                                        autoDetectLabel={`Default (${settings.targetCurrency})`}
-                                        triggerText={
-                                          rule.targetCurrency
-                                            ? rule.targetCurrency
-                                            : `Default (${settings.targetCurrency})`
-                                        }
-                                        ariaLabel={`Target currency for ${host}`}
-                                        align="start"
-                                        className="h-7 px-2 text-xs font-mono bg-background w-auto min-w-[120px]"
-                                        popoverClassName="w-56"
-                                        scrollHeight="h-48"
-                                        placeholder="Search currencies…"
-                                      />
-                                    </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent className="font-mono text-xs">
+                                        {host}
+                                      </TooltipContent>
+                                    </Tooltip>
                                   </div>
 
-                                  {/* Right Column: Segmented Mode Control + Icon Actions */}
-                                  <div className="flex items-center gap-1 shrink-0 self-end sm:self-center">
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <CurrencyPairChip
+                                      fromValue={rule.assumedCurrency || null}
+                                      onFromChange={(currency) =>
+                                        handleSetAssumedCurrency(host, currency)
+                                      }
+                                      toValue={rule.targetCurrency || null}
+                                      onToChange={(currency) =>
+                                        handleSetSiteTargetCurrency(host, currency)
+                                      }
+                                      defaultTargetCurrency={settings.targetCurrency}
+                                      currencies={allCurrencies}
+                                      fromAriaLabel={`Currency used on ${host}`}
+                                      toAriaLabel={`Target currency for ${host}`}
+                                    />
+
                                     <SiteModeControl
-                                      value={rule.mode || ""}
+                                      value={effectiveSiteMode}
                                       onChange={(val) => handleUpdateSiteMode(host, val)}
                                       domain={host}
                                       size="sm"
                                       ariaLabel={`Conversion mode for ${host}`}
                                     />
 
-                                    {rule.mode && (
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                            onClick={() => handleResetSiteMode(host)}
-                                            aria-label={`Reset ${host} to default`}
-                                          >
-                                            <ArrowCounterClockwise
-                                              weight="bold"
-                                              className="h-3.5 w-3.5"
-                                              aria-hidden="true"
-                                            />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent className="text-xs">
-                                          Reset mode to default
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    )}
-
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                          onClick={() => handleRemoveSiteRule(host)}
-                                          aria-label={`Remove ${host}`}
-                                        >
-                                          <Trash
-                                            weight="bold"
-                                            className="h-3.5 w-3.5"
-                                            aria-hidden="true"
-                                          />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent className="text-xs">
-                                        Remove {host}
-                                      </TooltipContent>
-                                    </Tooltip>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveSiteRule(host)}
+                                      aria-label={`Remove ${host}`}
+                                      title={`Remove ${host}`}
+                                      className="h-[34px] w-[34px] rounded-[9px] inline-flex items-center justify-center text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring shrink-0"
+                                    >
+                                      <svg
+                                        width="12"
+                                        height="12"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        aria-hidden="true"
+                                      >
+                                        <path d="M18 6L6 18M6 6l12 12" />
+                                      </svg>
+                                    </button>
                                   </div>
                                 </div>
 
                                 {isSameFromTo && (
-                                  <p className="text-xs text-warning flex items-center gap-1.5">
+                                  <p className="text-xs text-warning flex items-center gap-1.5 pl-6">
                                     <WarningCircle
                                       weight="fill"
                                       className="h-3.5 w-3.5 shrink-0"
                                       aria-hidden="true"
                                     />
                                     <span>
-                                      From and To are both {effectiveSiteTarget}. Set "From" to Auto-detect unless {host} only shows {effectiveSiteTarget} prices.
+                                      From and To are both {effectiveSiteTarget}. Set From to Auto-detect unless {host} only shows {effectiveSiteTarget} prices.
                                     </span>
                                   </p>
                                 )}
                               </div>
                             );
-                          })
-                        )}
-                      </div>
+                          })}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* SECTION 4: APPEARANCE */}
-                {currentSection === "appearance" && (
-                  <div className="flex flex-col gap-6">
-                    {/* Theme Selector */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex flex-col gap-0.5 pr-4">
-                        <Label className="text-sm font-medium text-foreground">Theme</Label>
-                        <span className="text-xs text-muted-foreground">
-                          Choose light, dark, or match your device.
-                        </span>
-                      </div>
+                  {/* SECTION 4: APPEARANCE */}
+                  {currentSection === "appearance" && (
+                    <div className="divide-y divide-border">
+                      {/* Theme Selector */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
+                        <div className="flex flex-col gap-0.5 pr-4">
+                          <Label className="text-sm font-medium text-foreground">Theme</Label>
+                          <span className="text-xs text-muted-foreground">
+                            Choose light, dark, or match your device.
+                          </span>
+                        </div>
 
-                      <SegmentedControl
-                        label="Theme selector"
-                        options={THEME_OPTIONS}
-                        value={settings.theme}
-                        onValueChange={(val) => val && updateSettings({ theme: val })}
-                        size="default"
-                        className="shrink-0"
-                      />
-                    </div>
-
-                    <Separator />
-
-                    {/* Display Mode — Interactive Visual Preview Cards (Overflow-Free) */}
-                    <div className="space-y-3">
-                      <div>
-                        <Label className="text-sm font-medium text-foreground">Display mode</Label>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Choose how converted prices appear on the page.
-                        </p>
-                      </div>
-
-                      <div
-                        role="radiogroup"
-                        aria-label="Display mode"
-                        className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1"
-                      >
-                        {[
-                          {
-                            value: "replace",
-                            title: "Replace in place",
-                            desc: "Swaps the price in place. Hover a price to see the original and the rate used.",
-                            preview: (
-                              <span className="font-mono text-xs font-semibold text-foreground border-b border-dotted border-border pb-0.5">
-                                {selectedTargetMeta?.symbol || "$"}277.14
-                              </span>
-                            ),
-                          },
-                          {
-                            value: "append",
-                            title: "Beside original",
-                            desc: "Keeps the original price and adds the converted amount in parentheses.",
-                            preview: (
-                              <span className="font-mono text-xs inline-flex flex-wrap items-center gap-1">
-                                <span className="text-muted-foreground">€249</span>
-                                <span className="px-1.5 py-0.5 rounded bg-secondary text-foreground font-medium">
-                                  ({selectedTargetMeta?.symbol || "$"}277.14)
-                                </span>
-                              </span>
-                            ),
-                          },
-                          {
-                            value: "replace_highlight",
-                            title: "Replace and highlight",
-                            desc: "Swaps the price and adds a soft highlight so converted prices stand out.",
-                            preview: (
-                              <span className="font-mono text-xs font-medium px-2 py-0.5 rounded bg-primary/10 text-primary border-b border-dashed border-primary">
-                                {selectedTargetMeta?.symbol || "$"}277.14
-                              </span>
-                            ),
-                          },
-                        ].map((opt) => (
-                          <button
-                            type="button"
-                            role="radio"
-                            aria-checked={settings.displayMode === opt.value}
-                            key={opt.value}
-                            onClick={() => updateSettings({ displayMode: opt.value })}
-                            className={`w-full min-w-0 overflow-hidden text-left p-3.5 rounded-xl border cursor-pointer transition-[border-color,background-color,box-shadow,transform] flex flex-col justify-between gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 motion-safe:active:scale-[0.99] ${
-                              settings.displayMode === opt.value
-                                ? "border-primary bg-secondary/60 shadow-xs ring-1 ring-primary/20"
-                                : "border-border/80 bg-card hover:bg-secondary/30 hover:border-border"
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="space-y-1 min-w-0">
-                                <div className="text-sm font-semibold tracking-tight text-foreground">
-                                  {opt.title}
-                                </div>
-                                <p className="text-xs text-muted-foreground leading-relaxed">
-                                  {opt.desc}
-                                </p>
-                              </div>
-                              <div
-                                className={`w-4 h-4 rounded-full border shrink-0 mt-0.5 flex items-center justify-center transition-colors ${
-                                  settings.displayMode === opt.value
-                                    ? "border-primary bg-primary"
-                                    : "border-muted-foreground/40 bg-transparent"
-                                }`}
-                                aria-hidden="true"
-                              >
-                                {settings.displayMode === opt.value && (
-                                  <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="w-full min-w-0 overflow-hidden px-3 py-2 rounded-lg bg-background border border-border/70 flex flex-col gap-1">
-                              <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
-                                Preview
-                              </span>
-                              <div className="min-w-0 truncate">{opt.preview}</div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* SECTION 5: BACKUP & RESET */}
-                {currentSection === "data" && (
-                  <div className="flex flex-col gap-6">
-                    {/* Export JSON */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex flex-col gap-0.5 pr-4">
-                        <Label className="text-sm font-medium text-foreground">Export settings</Label>
-                        <span className="text-xs text-muted-foreground">
-                          Download a backup of your settings, site rules and pinned currencies.
-                        </span>
-                      </div>
-                      <Button
-                        id="btn-export-settings"
-                        variant="outline"
-                        onClick={handleExportJson}
-                        className="text-xs h-9 shrink-0 gap-1.5"
-                      >
-                        <DownloadSimple weight="bold" className="h-3.5 w-3.5" />
-                        <span>Export</span>
-                      </Button>
-                    </div>
-
-                    <Separator />
-
-                    {/* Import JSON */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex flex-col gap-0.5 pr-4">
-                        <Label className="text-sm font-medium text-foreground">Import settings</Label>
-                        <span className="text-xs text-muted-foreground">
-                          Restore your settings from a backup you exported earlier.
-                        </span>
-                      </div>
-                      <div>
-                        <input
-                          type="file"
-                          ref={importFileInputRef}
-                          id="input-import-settings"
-                          accept=".json"
-                          onChange={handleImportJson}
-                          style={{ display: "none" }}
+                        <SegmentedControl
+                          label="Theme selector"
+                          options={THEME_OPTIONS}
+                          value={settings.theme}
+                          onValueChange={(val) => val && updateSettings({ theme: val })}
+                          size="default"
+                          className="shrink-0"
                         />
-                        <Button
-                          variant="outline"
-                          onClick={() => importFileInputRef.current?.click()}
-                          className="text-xs h-9 shrink-0 gap-1.5"
+                      </div>
+
+                      {/* Display Mode — Interactive Visual Preview Cards (Pine Green Cohesion) */}
+                      <div className="space-y-3 pt-4">
+                        <div>
+                          <Label className="text-sm font-medium text-foreground">Display mode</Label>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Choose how converted prices appear on the page.
+                          </p>
+                        </div>
+
+                        <div
+                          role="radiogroup"
+                          aria-label="Display mode"
+                          className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1"
                         >
-                          <UploadSimple weight="bold" className="h-3.5 w-3.5" />
-                          <span>Import</span>
+                          {[
+                            {
+                              value: "replace",
+                              title: "Replace in place",
+                              desc: "Swaps the price in place. Hover a price to see the original and the rate used.",
+                              preview: (
+                                <span className="font-mono text-xs font-semibold text-foreground border-b border-dotted border-border pb-0.5">
+                                  {selectedTargetMeta?.symbol || "$"}277.14
+                                </span>
+                              ),
+                            },
+                            {
+                              value: "append",
+                              title: "Beside original",
+                              desc: "Keeps the original price and adds the converted amount in parentheses.",
+                              preview: (
+                                <span className="font-mono text-xs inline-flex flex-wrap items-center gap-1">
+                                  <span className="text-muted-foreground">€249</span>
+                                  <span className="px-1.5 py-0.5 rounded bg-secondary text-foreground font-medium">
+                                    ({selectedTargetMeta?.symbol || "$"}277.14)
+                                  </span>
+                                </span>
+                              ),
+                            },
+                            {
+                              value: "replace_highlight",
+                              title: "Replace and highlight",
+                              desc: "Swaps the price and adds a soft highlight so converted prices stand out.",
+                              preview: (
+                                <span className="font-mono text-xs font-medium px-1.5 py-0.5 rounded-[2px] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-accent border-b-[1.5px] border-dashed border-accent">
+                                  {selectedTargetMeta?.symbol || "$"}277.14
+                                </span>
+                              ),
+                            },
+                          ].map((opt) => {
+                            const isSelected = settings.displayMode === opt.value;
+                            return (
+                              <button
+                                type="button"
+                                role="radio"
+                                aria-checked={isSelected}
+                                key={opt.value}
+                                onClick={() => updateSettings({ displayMode: opt.value })}
+                                className={`w-full min-w-0 overflow-hidden text-left p-3.5 rounded-xl border cursor-pointer transition-[border-color,background-color,box-shadow,transform] flex flex-col justify-between gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 motion-safe:active:scale-[0.99] ${
+                                  isSelected
+                                    ? "border-accent bg-[color-mix(in_srgb,var(--accent)_6%,var(--card))] shadow-[0_0_0_1px_var(--accent)]"
+                                    : "border-border/80 bg-card hover:bg-secondary/30 hover:border-border"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="space-y-1 min-w-0">
+                                    <div className="text-sm font-semibold tracking-tight text-foreground">
+                                      {opt.title}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                      {opt.desc}
+                                    </p>
+                                  </div>
+                                  <div
+                                    className={`w-4 h-4 rounded-full border shrink-0 mt-0.5 flex items-center justify-center transition-colors ${
+                                      isSelected
+                                        ? "border-accent bg-accent"
+                                        : "border-muted-foreground/40 bg-transparent"
+                                    }`}
+                                    aria-hidden="true"
+                                  >
+                                    {isSelected && (
+                                      <div className="w-1.5 h-1.5 rounded-full bg-accent-foreground" />
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="w-full min-w-0 overflow-hidden px-3 py-2 rounded-lg bg-background border border-border/70 flex flex-col gap-1">
+                                  <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+                                    Preview
+                                  </span>
+                                  <div className="min-w-0 truncate">{opt.preview}</div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SECTION 5: BACKUP & RESET */}
+                  {currentSection === "data" && (
+                    <div className="divide-y divide-border">
+                      {/* Export JSON */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3.5">
+                        <div className="flex flex-col gap-0.5 pr-4">
+                          <Label className="text-sm font-medium text-foreground">Export settings</Label>
+                          <span className="text-xs text-muted-foreground">
+                            Download a backup of your settings, site rules and pinned currencies.
+                          </span>
+                        </div>
+                        <Button
+                          id="btn-export-settings"
+                          variant="outline"
+                          onClick={handleExportJson}
+                          className="text-xs h-[34px] rounded-[9px] px-3.5 shrink-0 gap-1.5"
+                        >
+                          <DownloadSimple weight="bold" className="h-3.5 w-3.5" />
+                          <span>Export</span>
                         </Button>
                       </div>
-                    </div>
 
-                    <Separator />
-
-                    {/* Reset Defaults */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex flex-col gap-0.5 pr-4">
-                        <Label className="text-sm font-medium text-foreground">Reset settings</Label>
-                        <span className="text-xs text-muted-foreground">
-                          Clear your site rules and pinned currencies and restore the defaults.
-                        </span>
-                      </div>
-
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            id="btn-reset-defaults"
-                            variant="destructive"
-                            className="text-xs h-9 shrink-0 gap-1.5"
-                          >
-                            <ArrowCounterClockwise weight="bold" className="h-3.5 w-3.5" />
-                            <span>Reset…</span>
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Reset all settings?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This clears your site rules and pinned currencies and restores the defaults. This can't be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              id="btn-confirm-reset"
-                              variant="destructive"
-                              onClick={handleResetDefaults}
-                            >
-                              Reset settings
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                )}
-
-                {/* SECTION 6: ABOUT */}
-                {currentSection === "about" && (
-                  <div className="flex flex-col gap-6">
-                    {/* Brand Hero with 3-Layer Feature Cut */}
-                    <div className="flex items-center gap-5 p-4 rounded-xl bg-secondary/40 border border-border/80">
-                      <CanjiSymbol cut="feature" size={72} />
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-xl tracking-[-0.02em] text-foreground">
-                            canji
+                      {/* Import JSON */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3.5">
+                        <div className="flex flex-col gap-0.5 pr-4">
+                          <Label className="text-sm font-medium text-foreground">Import settings</Label>
+                          <span className="text-xs text-muted-foreground">
+                            Restore your settings from a backup you exported earlier.
                           </span>
-                          <Badge variant="secondary" className="font-mono text-xs">
-                            v{typeof __BUILD_VERSION__ !== "undefined" ? __BUILD_VERSION__ : "2.0.0"}
-                          </Badge>
                         </div>
-                        <p className="text-sm font-medium text-foreground">
-                          Prices, in your currency.
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          From Hausa <em>canji</em>, meaning change or exchange. Calm, private currency conversion on any page.
-                        </p>
+                        <div>
+                          <input
+                            type="file"
+                            ref={importFileInputRef}
+                            id="input-import-settings"
+                            accept=".json"
+                            onChange={handleImportJson}
+                            style={{ display: "none" }}
+                          />
+                          <Button
+                            variant="outline"
+                            onClick={() => importFileInputRef.current?.click()}
+                            className="text-xs h-[34px] rounded-[9px] px-3.5 shrink-0 gap-1.5"
+                          >
+                            <UploadSimple weight="bold" className="h-3.5 w-3.5" />
+                            <span>Import</span>
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Reset Defaults */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-3.5">
+                        <div className="flex flex-col gap-0.5 pr-4">
+                          <Label className="text-sm font-medium text-foreground">Reset settings</Label>
+                          <span className="text-xs text-muted-foreground">
+                            Clear your site rules and pinned currencies and restore the defaults.
+                          </span>
+                        </div>
+
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              id="btn-reset-defaults"
+                              variant="destructive"
+                              className="text-xs h-[34px] rounded-[9px] px-3.5 shrink-0 gap-1.5"
+                            >
+                              <ArrowCounterClockwise weight="bold" className="h-3.5 w-3.5" />
+                              <span>Reset…</span>
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Reset all settings?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This clears your site rules and pinned currencies and restores the defaults. This can't be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                id="btn-confirm-reset"
+                                variant="destructive"
+                                onClick={handleResetDefaults}
+                              >
+                                Reset settings
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
+                  )}
 
-                    {/* Exchange Rates Metadata */}
-                    <div className="space-y-3">
-                      <h2 className="text-sm font-medium text-foreground">Exchange rates</h2>
-                      <p className="text-xs text-muted-foreground">
-                        Rates come from the European Central Bank and refresh every few hours. If that source is unavailable, Canji switches to a backup.
-                      </p>
-                      <div className="divide-y divide-border border-y border-border text-xs">
-                        <div className="flex items-center justify-between py-2">
-                          <span className="text-muted-foreground">Main source</span>
-                          <span className="font-medium">European Central Bank</span>
-                        </div>
-                        <div className="flex items-center justify-between py-2">
-                          <span className="text-muted-foreground">Backup source</span>
-                          <span className="font-medium">Open exchange-rate data (Fawaz Ahmed)</span>
-                        </div>
-                        {ratesInfo && ratesInfo.timestamp && (
-                          <div className="flex items-center justify-between py-2 font-mono text-xs">
-                            <span className="text-muted-foreground">Last updated</span>
-                            <span>{new Date(ratesInfo.timestamp).toLocaleString()}</span>
+                  {/* SECTION 6: ABOUT */}
+                  {currentSection === "about" && (
+                    <div className="flex flex-col gap-5">
+                      {/* Brand Hero with Main 2-Layer Cut (matching product header logo) */}
+                      <div className="flex items-center gap-4 p-4 rounded-xl bg-secondary/40 border border-border/80">
+                        <CanjiSymbol cut="main" size={44} className="shrink-0" />
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-sans font-bold text-lg tracking-[-0.03em] text-foreground">
+                              canji
+                            </span>
                           </div>
-                        )}
+                          <p className="text-sm font-medium text-foreground">
+                            Prices, in your currency.
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            From Hausa <em>canji</em>, meaning change or exchange.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Exchange Rates Metadata */}
+                      <div className="space-y-2.5">
+                        <h2 className="text-sm font-medium text-foreground">Exchange rates</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Rates come from the European Central Bank and refresh every few hours. If that source is unavailable, Canji switches to a backup.
+                        </p>
+                        <div className="divide-y divide-border border-y border-border text-xs">
+                          <div className="flex items-center justify-between py-2.5">
+                            <span className="text-muted-foreground">Main source</span>
+                            <span className="font-medium">European Central Bank</span>
+                          </div>
+                          <div className="flex items-center justify-between py-2.5">
+                            <span className="text-muted-foreground">Backup source</span>
+                            <span className="font-medium">Open exchange-rate data (Fawaz Ahmed)</span>
+                          </div>
+                          {ratesInfo && ratesInfo.timestamp && (
+                            <div className="flex items-center justify-between py-2.5 font-mono text-xs">
+                              <span className="text-muted-foreground">Last updated</span>
+                              <span>{new Date(ratesInfo.timestamp).toLocaleString()}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Links */}
+                      <div className="space-y-2.5 pt-1">
+                        <h2 className="text-sm font-medium text-foreground">Help &amp; privacy</h2>
+                        <div className="flex flex-col sm:flex-row gap-2.5">
+                          <a
+                            href="https://github.com/richmondsogo/canji/blob/main/PRIVACY_POLICY.md"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center space-x-1.5 px-3 py-2 rounded-lg border border-border text-xs font-medium hover:bg-secondary/40 transition-colors"
+                          >
+                            <span>Privacy Policy</span>
+                            <ArrowSquareOut weight="bold" className="h-3 w-3 opacity-60" />
+                          </a>
+                          <a
+                            href="https://github.com/richmondsogo/canji/issues"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center space-x-1.5 px-3 py-2 rounded-lg border border-border text-xs font-medium hover:bg-secondary/40 transition-colors"
+                          >
+                            <span>Report an issue</span>
+                            <ArrowSquareOut weight="bold" className="h-3 w-3 opacity-60" />
+                          </a>
+                        </div>
                       </div>
                     </div>
-
-                    <Separator />
-
-                    {/* Links */}
-                    <div className="space-y-3">
-                      <h2 className="text-sm font-medium text-foreground">Help &amp; privacy</h2>
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <a
-                          href="https://github.com/richmondsogo/canji/blob/main/PRIVACY_POLICY.md"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center space-x-1.5 px-3 py-2 rounded-lg border border-border text-xs font-medium hover:bg-secondary/40 transition-colors"
-                        >
-                          <span>Privacy Policy</span>
-                          <ArrowSquareOut weight="bold" className="h-3 w-3 opacity-60" />
-                        </a>
-                        <a
-                          href="https://github.com/richmondsogo/canji/issues"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center space-x-1.5 px-3 py-2 rounded-lg border border-border text-xs font-medium hover:bg-secondary/40 transition-colors"
-                        >
-                          <span>Report an issue</span>
-                          <ArrowSquareOut weight="bold" className="h-3 w-3 opacity-60" />
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </main>
             </SidebarProvider>
           </Card>

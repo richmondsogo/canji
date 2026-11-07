@@ -11,7 +11,7 @@ import {
   CommandList,
 } from "@/ui/components/ui/command";
 import { Button } from "@/ui/components/ui/button";
-import { Check, CaretUpDown } from "@phosphor-icons/react";
+import { Check, CaretUpDown, ArrowRight } from "@phosphor-icons/react";
 import { getCurrencyMeta, getAllCurrencies } from "../../shared/currencies.js";
 import { cn } from "@/ui/lib/utils";
 
@@ -31,6 +31,7 @@ export function CurrencyCombobox({
   ariaLabel = "Select currency",
   align = "start",
   disabled = false,
+  hideIcon = false,
   className,
   popoverClassName,
   scrollHeight = "h-56",
@@ -103,14 +104,16 @@ export function CurrencyCombobox({
           >
             {displayLabel}
           </span>
-          <CaretUpDown
-            weight="bold"
-            className={cn(
-              "ml-2 h-3.5 w-3.5 shrink-0 opacity-60 text-muted-foreground transition-transform duration-150 ease-out",
-              open && "rotate-180"
-            )}
-            aria-hidden="true"
-          />
+          {!hideIcon && (
+            <CaretUpDown
+              weight="bold"
+              className={cn(
+                "ml-2 h-3.5 w-3.5 shrink-0 opacity-60 text-muted-foreground transition-transform duration-150 ease-out",
+                open && "rotate-180"
+              )}
+              aria-hidden="true"
+            />
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -192,3 +195,74 @@ export function CurrencyCombobox({
     </Popover>
   );
 }
+
+/**
+ * Type 4 Calm Single-Chip Currency Pair ([ Auto → USD ⌄ ]).
+ * Wraps the source ("From") and target ("To") CurrencyCombobox triggers inside
+ * a single unified 34px capsule with one shared border and a single trailing caret.
+ */
+export function CurrencyPairChip({
+  fromValue,
+  onFromChange,
+  toValue,
+  onToChange,
+  defaultTargetCurrency = "USD",
+  currencies,
+  fromAriaLabel = "Source currency",
+  toAriaLabel = "Target currency",
+  className,
+}) {
+  const hasCustomOverride = Boolean(
+    fromValue || (toValue && toValue !== defaultTargetCurrency)
+  );
+
+  return (
+    <div
+      role="group"
+      className={cn(
+        "inline-flex items-center h-[34px] rounded-[9px] border px-1 shrink-0 transition-colors",
+        hasCustomOverride
+          ? "border-accent bg-[color-mix(in_srgb,var(--accent)_7%,var(--background))]"
+          : "border-border bg-background",
+        className
+      )}
+    >
+      <CurrencyCombobox
+        value={fromValue || null}
+        onChange={onFromChange}
+        currencies={currencies}
+        allowAutoDetect={true}
+        autoDetectLabel="Auto-detect"
+        triggerText={fromValue || "Auto"}
+        ariaLabel={fromAriaLabel}
+        align="start"
+        hideIcon={true}
+        className="h-[26px] px-2 text-xs font-mono border-0 shadow-none bg-transparent hover:bg-secondary/80 rounded-[6px] w-auto min-w-[44px]"
+        popoverClassName="w-56"
+        scrollHeight="h-48"
+        placeholder="Search currencies…"
+      />
+      <ArrowRight
+        weight="bold"
+        className="h-3 w-3 shrink-0 text-muted-foreground/70 mx-0.5 select-none pointer-events-none"
+        aria-hidden="true"
+      />
+      <CurrencyCombobox
+        value={toValue || null}
+        onChange={onToChange}
+        currencies={currencies}
+        allowAutoDetect={true}
+        autoDetectLabel={`Default (${defaultTargetCurrency})`}
+        triggerText={toValue || defaultTargetCurrency}
+        ariaLabel={toAriaLabel}
+        align="end"
+        hideIcon={false}
+        className="h-[26px] pl-2 pr-1.5 text-xs font-mono border-0 shadow-none bg-transparent hover:bg-secondary/80 rounded-[6px] w-auto min-w-[54px]"
+        popoverClassName="w-56"
+        scrollHeight="h-48"
+        placeholder="Search currencies…"
+      />
+    </div>
+  );
+}
+

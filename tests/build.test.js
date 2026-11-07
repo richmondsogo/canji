@@ -106,4 +106,21 @@ test('build: zip packages exist and contain manifest.json at root', () => {
   assert.ok(firefoxEntries.includes('manifest.json'), 'Firefox zip must contain manifest.json at root');
   assert.ok(firefoxEntries.includes('background.js'), 'Firefox zip must contain background.js at root');
   assert.ok(firefoxEntries.includes('content.js'), 'Firefox zip must contain content.js at root');
+
+  // Verify zero stale .woff/.woff2 webfont bloat in zip packages and explicit MV3 CSP in manifests
+  const staleFontsChrome = chromeEntries.filter((e) => e.endsWith('.woff') || e.endsWith('.woff2'));
+  const staleFontsFirefox = firefoxEntries.filter((e) => e.endsWith('.woff') || e.endsWith('.woff2'));
+  assert.equal(staleFontsChrome.length, 0, 'Chrome zip must not bundle stale .woff/.woff2 webfonts');
+  assert.equal(staleFontsFirefox.length, 0, 'Firefox zip must not bundle stale .woff/.woff2 webfonts');
+
+  const chromeManifest = JSON.parse(fs.readFileSync(path.join(distChrome, 'manifest.json'), 'utf8'));
+  const firefoxManifest = JSON.parse(fs.readFileSync(path.join(distFirefox, 'manifest.json'), 'utf8'));
+  assert.equal(
+    chromeManifest.content_security_policy?.extension_pages,
+    "script-src 'self'; object-src 'self'; base-uri 'none';"
+  );
+  assert.equal(
+    firefoxManifest.content_security_policy?.extension_pages,
+    "script-src 'self'; object-src 'self'; base-uri 'none';"
+  );
 });

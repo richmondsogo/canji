@@ -40,8 +40,11 @@ async function run() {
           targetCurrency: 'USD',
           displayMode: 'replace',
           showInPageBar: true,
+          pinnedCurrencies: ['NGN', 'USD', 'EUR', 'GBP', 'JPY', 'CAD'],
           perSite: {
-            'store.nordicliving.com': { mode: 'always' }
+            'store.nordicliving.com': { mode: 'always', assumedCurrency: 'EUR', targetCurrency: 'USD' },
+            'ebay.com': { mode: 'always', assumedCurrency: null, targetCurrency: 'NGN' },
+            'shein.com': { mode: 'always', assumedCurrency: null, targetCurrency: 'NGN' }
           }
         }
       });
@@ -127,11 +130,19 @@ async function run() {
     // -------------------------------------------------------------------------
     console.log('[Screenshots] 2. Capturing Toolbar Action Popup...');
     const popupPage = await context.newPage();
-    await popupPage.setViewportSize({ width: 360, height: 560 });
+    await popupPage.setViewportSize({ width: 360, height: 360 });
     const popupUrl = `chrome-extension://${browser.extensionId}/popup/popup.html`;
     await popupPage.goto(popupUrl);
     await popupPage.waitForLoadState('domcontentloaded');
     await popupPage.waitForTimeout(800);
+    const naturalPopupHeight = await popupPage.evaluate(() => {
+      const el = document.querySelector('#root > div') || document.body;
+      return Math.ceil(el.getBoundingClientRect().height);
+    });
+    if (naturalPopupHeight > 200) {
+      await popupPage.setViewportSize({ width: 360, height: naturalPopupHeight });
+      await popupPage.waitForTimeout(100);
+    }
 
     const popupBuf = await popupPage.screenshot();
     await savePopupCompositeOnStore(popupBuf, 'screenshot-popup.png');
@@ -141,6 +152,7 @@ async function run() {
     // 3. Searchable Combobox (screenshot-combobox.png — 1280x800 CWS compliant)
     // -------------------------------------------------------------------------
     console.log('[Screenshots] 3. Capturing Searchable Currency Combobox...');
+    await popupPage.setViewportSize({ width: 360, height: 520 });
     const pickerBtn = popupPage.locator('#picker-to-btn');
     if (await pickerBtn.count() > 0) {
       await pickerBtn.click();
@@ -158,20 +170,44 @@ async function run() {
     console.log('[Screenshots] Saved screenshot-combobox.png');
 
     // -------------------------------------------------------------------------
-    // 4. Options Dashboard (screenshot-options.png — 1280x800 CWS compliant)
+    // 4. Options Dashboard — General, Sites, Currencies, Appearance (1280x800)
     // -------------------------------------------------------------------------
-    console.log('[Screenshots] 4. Capturing Options Dashboard...');
+    console.log('[Screenshots] 4. Capturing Options Dashboard (General, Sites, Currencies, Appearance)...');
     const optionsPage = await context.newPage();
     await optionsPage.setViewportSize({ width: 1280, height: 800 });
     const optionsUrl = `chrome-extension://${browser.extensionId}/options/options.html`;
-    await optionsPage.goto(optionsUrl);
+    await optionsPage.goto(`${optionsUrl}#general`);
     await optionsPage.waitForLoadState('domcontentloaded');
-    await optionsPage.waitForTimeout(1000);
+    await optionsPage.waitForTimeout(800);
 
     await optionsPage.screenshot({
       path: path.join(outDir, 'screenshot-options.png')
     });
     console.log('[Screenshots] Saved screenshot-options.png');
+
+    // 4b. Sites section (Type 4 redesign)
+    await optionsPage.goto(`${optionsUrl}#sites`);
+    await optionsPage.waitForTimeout(600);
+    await optionsPage.screenshot({
+      path: path.join(outDir, 'screenshot-sites.png')
+    });
+    console.log('[Screenshots] Saved screenshot-sites.png');
+
+    // 4c. Currencies section (FieldArray redesign)
+    await optionsPage.goto(`${optionsUrl}#currencies`);
+    await optionsPage.waitForTimeout(600);
+    await optionsPage.screenshot({
+      path: path.join(outDir, 'screenshot-currencies.png')
+    });
+    console.log('[Screenshots] Saved screenshot-currencies.png');
+
+    // 4d. Appearance section (Display mode preview cards with Pine Green border)
+    await optionsPage.goto(`${optionsUrl}#appearance`);
+    await optionsPage.waitForTimeout(600);
+    await optionsPage.screenshot({
+      path: path.join(outDir, 'screenshot-appearance.png')
+    });
+    console.log('[Screenshots] Saved screenshot-appearance.png');
 
     // -------------------------------------------------------------------------
     // 5. Context Menu Selection (real-work-test-context-menu.png — 1280x800 CWS compliant)
@@ -310,20 +346,20 @@ async function run() {
     font-size: 24px;
     font-weight: 600;
     letter-spacing: -0.02em;
-    color: #191815;
+    color: #141C18;
     margin-bottom: 3px;
   }
   .subtitle {
     font-size: 13px;
     font-weight: 400;
-    color: #67635A;
+    color: #5C6660;
     margin-bottom: 16px;
   }
   .pill-preview {
     background: #FFFFFF;
-    border: 1px solid #E2DED4;
+    border: 1px solid rgba(30, 107, 82, 0.18);
     border-radius: 9999px;
-    box-shadow: 0 4px 14px rgba(25, 24, 21, 0.08);
+    box-shadow: 0 4px 14px rgba(20, 33, 27, 0.08);
     padding: 6px 14px;
     display: flex;
     align-items: center;
@@ -343,7 +379,7 @@ async function run() {
     font-weight: 400;
   }
   .pill-arrow {
-    color: #67635A;
+    color: #5C6660;
     font-size: 11px;
   }
   .pill-to {
@@ -351,12 +387,12 @@ async function run() {
     font-weight: 600;
   }
   .pill-tag {
-    background: #EFECE5;
-    color: #191815;
+    background: #194A39;
+    color: #F7F5F0;
     font-size: 10px;
     font-weight: 600;
-    padding: 1px 6px;
-    border-radius: 4px;
+    padding: 2px 7px;
+    border-radius: 5px;
     letter-spacing: 0.02em;
     margin-left: 2px;
   }
@@ -365,7 +401,7 @@ async function run() {
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: #9B968B;
+    color: #5C6660;
   }
 </style>
 </head>
@@ -373,8 +409,8 @@ async function run() {
   <div class="accent-bar"></div>
   <div class="icon-container">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="58" height="58">
-      <path fill="#191815" d="M35.68 73.40 L35.68 182.60 L130.25 237.20 L220.32 185.20 L220.32 174.80 L130.25 226.80 L44.68 177.40 L44.68 78.60 L130.25 29.20 L220.32 81.20 L220.32 70.80 L130.25 18.80Z"/>
-      <path fill="#191815" d="M96.93 91.08 L96.93 164.92 L160.87 201.84 L220.32 167.52 L220.32 157.12 L160.87 191.44 L105.93 159.72 L105.93 96.28 L160.87 64.56 L220.32 98.88 L220.32 88.48 L160.87 54.16Z"/>
+      <path fill="#14211B" d="M35.68 73.40 L35.68 182.60 L130.25 237.20 L220.32 185.20 L220.32 174.80 L130.25 226.80 L44.68 177.40 L44.68 78.60 L130.25 29.20 L220.32 81.20 L220.32 70.80 L130.25 18.80Z"/>
+      <path fill="#14211B" d="M96.93 91.08 L96.93 164.92 L160.87 201.84 L220.32 167.52 L220.32 157.12 L160.87 191.44 L105.93 159.72 L105.93 96.28 L160.87 64.56 L220.32 98.88 L220.32 88.48 L160.87 54.16Z"/>
       <path fill="#1E6B52" d="M158.17 108.76 L158.17 147.24 L191.50 166.48 L220.32 149.84 L220.32 139.44 L191.50 156.08 L167.17 142.04 L167.17 113.96 L191.50 99.92 L220.32 116.56 L220.32 106.16 L191.50 89.52Z"/>
     </svg>
   </div>

@@ -2,9 +2,9 @@
 
 > **Target Version**: 2.0.0  
 > **Package Files**:  
-> - Chrome: `dist/packages/canji-chrome-v2.0.0.zip`  
-> - Firefox: `dist/packages/canji-firefox-v2.0.0.zip`  
-> **Last Verified**: 2026-11-05  
+> - Chrome: `dist/packages/canji-chrome-v2.0.0.zip` (`~433 KB`)  
+> - Firefox: `dist/packages/canji-firefox-v2.0.0.zip` (`~433 KB`)  
+> **Last Verified**: 2026-11-07  
 
 ---
 
@@ -72,10 +72,13 @@ English (United States)
 |---|---|---|---|
 | **Store Icon** | 128 × 128 px | `dist/chrome/icons/icon128.png` | Official Canji hexagonal icon |
 | **Screenshot 1** | 1280 × 800 px | `screenshots/screenshot-inpage-bar.png` | In-page converted prices, top toolbar, and hover rate tooltip |
-| **Screenshot 2** | 1280 × 800 px | `screenshots/screenshot-popup.png` | Toolbar popup with explicit From → To currency controls and site rules |
-| **Screenshot 3** | 1280 × 800 px | `screenshots/screenshot-combobox.png` | Searchable currency combobox across 170+ currencies |
-| **Screenshot 4** | 1280 × 800 px | `screenshots/screenshot-options.png` | Settings dashboard with sidebar navigation and currency preferences |
-| **Screenshot 5** | 1280 × 800 px | `screenshots/real-work-test-context-menu.png` | Right-click selection conversion |
+| **Screenshot 2** | 1280 × 800 px | `screenshots/screenshot-popup.png` | Toolbar popup with framed `From → To` currency controls and single-line site rule |
+| **Screenshot 3** | 1280 × 800 px | `screenshots/screenshot-sites.png` | Per-site `From → To` currency chip and `Ask | Always | Never` rules |
+| **Screenshot 4** | 1280 × 800 px | `screenshots/screenshot-currencies.png` | Pinned quick-pick currencies `FieldArray` with live combobox rows |
+| **Screenshot 5** | 1280 × 800 px | `screenshots/screenshot-options.png` | General settings dashboard with Paper & Pine controls |
+| **Screenshot 6** | 1280 × 800 px | `screenshots/screenshot-appearance.png` | Appearance & 3 Display Mode preview cards |
+| **Screenshot 7** | 1280 × 800 px | `screenshots/screenshot-combobox.png` | Searchable currency combobox across 170+ currencies |
+| **Screenshot 8** | 1280 × 800 px | `screenshots/real-work-test-context-menu.png` | Right-click selection conversion |
 | **Promo Tile** | 440 × 280 px | `screenshots/promo-small-440x280.png` | Chrome Web Store small promotional tile |
 
 ---
@@ -84,7 +87,7 @@ English (United States)
 
 | Permission | Scope | Justification |
 |---|---|---|
-| `tabs` | API | Queries active tab properties (URL, hostname) to detect restricted browser pages and apply per-site conversion rules. |
+| `tabs` | API | Queries active tab properties (URL, hostname) to detect restricted browser pages, apply per-site conversion rules, and sync rule changes across open tabs. |
 | `activeTab` | API | Enables on-demand in-page price conversion on the active tab when triggered via the toolbar popup or context menu. |
 | `scripting` | API | Ensures the content script engine is injected into already-open tabs when conversion is requested. |
 | `storage` | API | Persists user preferences, pinned currencies, per-site rules, and cached exchange rates locally (`chrome.storage.local` and `chrome.storage.session`). |
@@ -120,7 +123,7 @@ Reviewer Guidance:
 1. Manifest V3 Architecture: The background service worker (background.js) manages exchange-rate caching, context menus, and tab messaging.
 2. Local DOM Processing: All webpage text scanning and price conversion happen strictly client-side in the active tab. No page text, URLs, or browsing history ever leave the device.
 3. Anonymous Rate Fetching: The only network requests are anonymous GET requests for public base-EUR currency rate tables from the European Central Bank (api.frankfurter.dev) and open fallback mirrors (cdn.jsdelivr.net / currency-api.pages.dev).
-4. Zero Remote Code: All JavaScript and fonts are bundled locally with esbuild. Zero eval, zero remote scripts, and zero innerHTML usage.
+4. Zero Remote Code: All JavaScript is bundled locally with esbuild under a strict MV3 Content Security Policy ("script-src 'self'; object-src 'self'; base-uri 'none';"). Zero eval, zero remote scripts, and zero innerHTML usage.
 ```
 
 ---

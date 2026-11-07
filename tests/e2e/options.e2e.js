@@ -57,7 +57,7 @@ test('E2E Options: Complete rebuild verification covering all 10 requirements', 
     await optionsPage.waitForSelector('h1');
 
     const title = await optionsPage.title();
-    assert.equal(title, 'General — Canji', 'document.title must reflect the active section');
+    assert.equal(title, 'General', 'document.title must reflect the active section');
 
     const heading = await optionsPage.locator('h1').textContent();
     assert.equal(heading.trim(), 'General');
@@ -149,8 +149,8 @@ test('E2E Options: Complete rebuild verification covering all 10 requirements', 
     await optionsPage.locator('a[href="#currencies"]').click();
     await optionsPage.waitForSelector('[aria-label="Pinned currencies"]');
 
-    const badgeText = await optionsPage.locator('.font-mono:has-text("of 8")').first().textContent();
-    assert.ok(badgeText.includes('8 of 8'), 'Default pinned currencies should have 8 items');
+    const initialPinnedCount = await optionsPage.locator('[aria-label="Pinned currencies"] [role="listitem"]').count();
+    assert.equal(initialPinnedCount, 8, 'Default pinned currencies should have 8 items');
 
     const limitMsg = optionsPage.locator('p:has-text("pinned the maximum of 8")');
     assert.ok(await limitMsg.isVisible(), 'Limit message must be shown when 8 pinned');
@@ -160,8 +160,8 @@ test('E2E Options: Complete rebuild verification covering all 10 requirements', 
     if (await removeInr.isVisible()) {
       await removeInr.click();
       await optionsPage.waitForTimeout(600);
-      const newBadge = await optionsPage.locator('.font-mono:has-text("of 8")').first().textContent();
-      assert.ok(newBadge.includes('7 of 8'), 'Badge should update to 7 of 8');
+      const updatedPinnedCount = await optionsPage.locator('[aria-label="Pinned currencies"] [role="listitem"]').count();
+      assert.equal(updatedPinnedCount, 7, 'Pinned currencies list should update to 7 items');
     }
 
     // -------------------------------------------------------------------------

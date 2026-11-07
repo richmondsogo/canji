@@ -16,7 +16,7 @@ export const INLINE_UI_CSS = `
   height: 0;
   z-index: 2147483647;
   pointer-events: none;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -172,7 +172,7 @@ export const INLINE_UI_CSS = `
 
 /* Count Badge */
 .cc-count-badge {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-size: 11.5px;
   font-weight: 500;
   color: var(--cc-text);
@@ -220,7 +220,7 @@ export const INLINE_UI_CSS = `
 
 /* Live Exchange Rate */
 .cc-live-rate {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-size: 11.5px;
   font-weight: 400;
   color: var(--cc-muted);
@@ -438,7 +438,7 @@ export const INLINE_UI_CSS = `
 }
 
 .cc-popover-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-weight: 500;
   font-size: 11.5px;
 }
@@ -459,7 +459,7 @@ export const INLINE_UI_CSS = `
 }
 
 .cc-popover-symbol {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-size: 11px;
   color: var(--cc-muted);
   margin-left: 8px;
@@ -656,7 +656,7 @@ export const INLINE_UI_CSS = `
 }
 
 .cc-tooltip-sub {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-size: 10.5px;
   color: var(--cc-muted);
   font-variant-numeric: tabular-nums;

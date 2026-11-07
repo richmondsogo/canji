@@ -217,3 +217,46 @@ test('options unit: SegmentedControl and LiquidToggle integration, token mapping
   assert.match(optionsHtml, /<noscript>/, 'options.html must include <noscript> fallback');
   assert.match(popupHtml, /<noscript>/, 'popup.html must include <noscript> fallback');
 });
+
+test('options unit: Step 23 FieldArray cohesion, toast closeButton, two-font discipline, and green brand alignment', () => {
+  const fieldArrayPath = path.join(rootDir, 'src', 'ui', 'components', 'ui', 'field-array.jsx');
+  const sonnerPath = path.join(rootDir, 'src', 'ui', 'components', 'ui', 'sonner.jsx');
+  const logoPath = path.join(rootDir, 'src', 'ui', 'components', 'CanjiLogo.jsx');
+  const globalsCssPath = path.join(rootDir, 'src', 'ui', 'globals.css');
+  const optionsJsxPath = path.join(rootDir, 'src', 'options', 'options.jsx');
+  const popupJsxPath = path.join(rootDir, 'src', 'popup', 'popup.jsx');
+  const optionsHtmlPath = path.join(rootDir, 'src', 'options', 'options.html');
+  const popupHtmlPath = path.join(rootDir, 'src', 'popup', 'popup.html');
+
+  assert.ok(fs.existsSync(fieldArrayPath), 'field-array.jsx must exist in src/ui/components/ui/');
+  const fieldArraySrc = fs.readFileSync(fieldArrayPath, 'utf8');
+  assert.match(fieldArraySrc, /export function FieldArray/, 'FieldArray must be exported');
+
+  const sonnerSrc = fs.readFileSync(sonnerPath, 'utf8');
+  assert.match(sonnerSrc, /\bcloseButton\b/, 'Sonner Toaster must enable closeButton on all toasts');
+
+  const logoSrc = fs.readFileSync(logoPath, 'utf8');
+  assert.match(logoSrc, /fill="var\(--accent,\s*#1E6B52\)"/, 'CanjiSymbol inner cut must use Pine Green accent');
+  assert.ok(!logoSrc.includes('Plus Jakarta Sans'), 'CanjiLogo must not use Plus Jakarta Sans');
+
+  const globalsCss = fs.readFileSync(globalsCssPath, 'utf8');
+  assert.match(globalsCss, /--fill-on:\s*var\(--accent\)/, 'LiquidToggle active state must map to --accent (Pine Green)');
+  assert.match(globalsCss, /::selection\s*\{[\s\S]*?var\(--accent\)/, 'globals.css must style ::selection with Pine Green --accent');
+  assert.match(globalsCss, /--seg-thumb:\s*#194A39/i, 'globals.css must define Deep Pine --seg-thumb for SegmentedControl');
+  assert.match(globalsCss, /--primary:\s*#14211B/i, 'globals.css must define Deep Pine-Charcoal --primary in Light Mode');
+
+  const optionsJsx = fs.readFileSync(optionsJsxPath, 'utf8');
+  assert.match(optionsJsx, /FieldArray/, 'options.jsx must use FieldArray for unified Currencies and Sites sections');
+  assert.match(optionsJsx, /document\.title\s*=\s*active\.title/, 'options.jsx must set document.title to section name only');
+  assert.ok(!optionsJsx.includes('__BUILD_VERSION__'), 'About section must not render version badge');
+  assert.match(optionsJsx, /border-accent/, 'Display mode selected card must use green border-accent');
+
+  const popupJsx = fs.readFileSync(popupJsxPath, 'utf8');
+  assert.ok(!popupJsx.includes('link-options'), 'Popup must not render duplicate Settings footer link');
+  assert.ok(!popupJsx.includes('Using your default'), 'Popup must select effective mode directly instead of showing Using your default text');
+
+  const optionsHtml = fs.readFileSync(optionsHtmlPath, 'utf8');
+  const popupHtml = fs.readFileSync(popupHtmlPath, 'utf8');
+  assert.match(optionsHtml, /rel="icon"/, 'options.html must include favicon link');
+  assert.match(popupHtml, /rel="icon"/, 'popup.html must include favicon link');
+});
