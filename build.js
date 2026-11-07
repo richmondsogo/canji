@@ -115,6 +115,10 @@ export async function buildGallery() {
 // Extension Build (Chrome & Firefox MV3 bundles)
 // -----------------------------------------------------------------------------
 export async function buildExtension() {
+  [chromeDir, firefoxDir, packagesDir].forEach(dir => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
   [
     distDir,
     chromeDir,
@@ -140,6 +144,7 @@ export async function buildExtension() {
   esbuild.buildSync({
     entryPoints: vanillaEntryPoints,
     bundle: true,
+    minify: true,
     outdir: chromeDir,
     target: 'es2022',
     format: 'iife',
@@ -152,6 +157,7 @@ export async function buildExtension() {
   esbuild.buildSync({
     entryPoints: vanillaEntryPoints,
     bundle: true,
+    minify: true,
     outdir: firefoxDir,
     target: 'es2022',
     format: 'iife',
@@ -181,12 +187,7 @@ export async function buildExtension() {
     define: {
       ...define,
       'process.env.NODE_ENV': JSON.stringify('production')
-    },
-    loader: {
-      '.woff2': 'file',
-      '.woff': 'file'
-    },
-    assetNames: 'options/fonts/[name]-[hash]'
+    }
   };
 
   esbuild.buildSync({
@@ -215,12 +216,7 @@ export async function buildExtension() {
     define: {
       ...define,
       'process.env.NODE_ENV': JSON.stringify('production')
-    },
-    loader: {
-      '.woff2': 'file',
-      '.woff': 'file'
-    },
-    assetNames: 'popup/fonts/[name]-[hash]'
+    }
   };
 
   esbuild.buildSync({
@@ -300,6 +296,9 @@ export async function buildExtension() {
     host_permissions: [
       "<all_urls>"
     ],
+    content_security_policy: {
+      extension_pages: "script-src 'self'; object-src 'self'; base-uri 'none';"
+    },
     icons: {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",

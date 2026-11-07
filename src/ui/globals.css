@@ -7,27 +7,34 @@
     /* Paper & Pine (Light) */
     color-scheme: light;
     --background: #F7F5F0;
-    --foreground: #191815;
+    --foreground: #141C18;
 
     --card: #EFECE5;
-    --card-foreground: #191815;
+    --card-foreground: #141C18;
 
     --popover: #EFECE5;
-    --popover-foreground: #191815;
+    --popover-foreground: #141C18;
 
-    /* Primary buttons use ink (text color as background) */
-    --primary: #191815;
+    /* Primary buttons use Deep Pine-Charcoal (cohesive with Pine Green) */
+    --primary: #14211B;
     --primary-foreground: #F7F5F0;
 
     --secondary: #EFECE5;
-    --secondary-foreground: #191815;
+    --secondary-foreground: #141C18;
 
     --muted: #EFECE5;
-    --muted-foreground: #67635A;
+    --muted-foreground: #626158;
 
     /* Accent: Pine Green */
     --accent: #1E6B52;
     --accent-foreground: #FFFFFF;
+
+    /* SegmentedControl tokens (Deep Pine thumb + sage-tinted track) */
+    --seg-track: color-mix(in srgb, #1E6B52 6%, #EFECE5);
+    --seg-border: color-mix(in srgb, #1E6B52 18%, #E2DED4);
+    --seg-thumb: #194A39;
+    --seg-thumb-foreground: #F7F5F0;
+    --seg-thumb-shadow: 0 1px 2px rgba(20, 33, 27, 0.22), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 
     --destructive: #B3261E;
     --destructive-foreground: #FFFFFF;
@@ -40,11 +47,11 @@
     --ring: rgba(30, 107, 82, 0.4);
 
     --sidebar: #F2EFE8;
-    --sidebar-foreground: #191815;
-    --sidebar-primary: #191815;
+    --sidebar-foreground: #141C18;
+    --sidebar-primary: #14211B;
     --sidebar-primary-foreground: #F7F5F0;
-    --sidebar-accent: #E6E2D8;
-    --sidebar-accent-foreground: #191815;
+    --sidebar-accent: color-mix(in srgb, #1E6B52 9%, #EFECE5);
+    --sidebar-accent-foreground: #141C18;
     --sidebar-border: #E2DED4;
     --sidebar-ring: rgba(30, 107, 82, 0.4);
 
@@ -78,6 +85,13 @@
       --accent: #6FD3A6;
       --accent-foreground: #10100E;
 
+      /* SegmentedControl tokens (Deep Forest Pine thumb + mint rim) */
+      --seg-track: color-mix(in srgb, #6FD3A6 5%, #181816);
+      --seg-border: color-mix(in srgb, #6FD3A6 20%, #2A2926);
+      --seg-thumb: #1D523F;
+      --seg-thumb-foreground: #F2F7F4;
+      --seg-thumb-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(111, 211, 166, 0.32);
+
       --destructive: #E87068;
       --destructive-foreground: #10100E;
 
@@ -92,7 +106,7 @@
       --sidebar-foreground: #ECE9E2;
       --sidebar-primary: #ECE9E2;
       --sidebar-primary-foreground: #10100E;
-      --sidebar-accent: #22211E;
+      --sidebar-accent: color-mix(in srgb, #6FD3A6 9%, #181816);
       --sidebar-accent-foreground: #ECE9E2;
       --sidebar-border: #2A2926;
       --sidebar-ring: rgba(111, 211, 166, 0.4);
@@ -123,6 +137,12 @@
     --accent: #6FD3A6;
     --accent-foreground: #10100E;
 
+    --seg-track: color-mix(in srgb, #6FD3A6 5%, #181816);
+    --seg-border: color-mix(in srgb, #6FD3A6 20%, #2A2926);
+    --seg-thumb: #1D523F;
+    --seg-thumb-foreground: #F2F7F4;
+    --seg-thumb-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(111, 211, 166, 0.32);
+
     --destructive: #E87068;
     --destructive-foreground: #10100E;
 
@@ -137,7 +157,7 @@
     --sidebar-foreground: #ECE9E2;
     --sidebar-primary: #ECE9E2;
     --sidebar-primary-foreground: #10100E;
-    --sidebar-accent: #22211E;
+    --sidebar-accent: color-mix(in srgb, #6FD3A6 9%, #181816);
     --sidebar-accent-foreground: #ECE9E2;
     --sidebar-border: #2A2926;
     --sidebar-ring: rgba(111, 211, 166, 0.4);
@@ -147,25 +167,31 @@
     /* Paper & Pine (Light - Explicit) */
     color-scheme: light;
     --background: #F7F5F0;
-    --foreground: #191815;
+    --foreground: #141C18;
 
     --card: #EFECE5;
-    --card-foreground: #191815;
+    --card-foreground: #141C18;
 
     --popover: #EFECE5;
-    --popover-foreground: #191815;
+    --popover-foreground: #141C18;
 
-    --primary: #191815;
+    --primary: #14211B;
     --primary-foreground: #F7F5F0;
 
     --secondary: #EFECE5;
-    --secondary-foreground: #191815;
+    --secondary-foreground: #141C18;
 
     --muted: #EFECE5;
-    --muted-foreground: #67635A;
+    --muted-foreground: #626158;
 
     --accent: #1E6B52;
     --accent-foreground: #FFFFFF;
+
+    --seg-track: color-mix(in srgb, #1E6B52 6%, #EFECE5);
+    --seg-border: color-mix(in srgb, #1E6B52 18%, #E2DED4);
+    --seg-thumb: #194A39;
+    --seg-thumb-foreground: #F7F5F0;
+    --seg-thumb-shadow: 0 1px 2px rgba(20, 33, 27, 0.22), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 
     --destructive: #B3261E;
     --destructive-foreground: #FFFFFF;
@@ -178,13 +204,18 @@
     --ring: rgba(30, 107, 82, 0.4);
 
     --sidebar: #F2EFE8;
-    --sidebar-foreground: #191815;
-    --sidebar-primary: #191815;
+    --sidebar-foreground: #141C18;
+    --sidebar-primary: #14211B;
     --sidebar-primary-foreground: #F7F5F0;
-    --sidebar-accent: #E6E2D8;
-    --sidebar-accent-foreground: #191815;
+    --sidebar-accent: color-mix(in srgb, #1E6B52 9%, #EFECE5);
+    --sidebar-accent-foreground: #141C18;
     --sidebar-border: #E2DED4;
     --sidebar-ring: rgba(30, 107, 82, 0.4);
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--accent) 24%, transparent);
+    color: var(--foreground);
   }
 
   * {
@@ -347,7 +378,7 @@
   /* Mapped to Canji Paper & Pine tokens locally so nothing leaks out */
   --board: var(--background);
   --card: var(--secondary);
-  --fill-on: var(--primary);
+  --fill-on: var(--accent);
   --fill-slab: var(--secondary);
   --ink: var(--foreground);
   --nod-r: var(--radius);
@@ -472,7 +503,7 @@
   width: var(--liq-thumb, 36px); height: var(--liq-thumb, 36px);
   margin-top: calc(var(--liq-thumb, 36px) / -2);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--fill-on, var(--ink)) 19%, var(--fill-slab, var(--card)));
+  background: color-mix(in srgb, var(--ink) 22%, var(--fill-slab, var(--card)));
   /* transform is Framer's — a CSS transition on the same
      property re-interpolates every frame the spring writes,
      and what you see is the easing, not the spring. The colour
@@ -481,11 +512,51 @@
      into one transform by Framer. */
   transition: background 420ms ease;}
 
-/* ON inverts the pair: ink track, slab droplet. The two states
-   are the two ends of the fill's ramp and never two values of
-   the same one. */
-.liq-sw[data-on="true"] .liq-thumb { background: var(--fill-slab, var(--board)); }
+/* ON inverts the pair: pine accent track, crisp droplet. */
+.liq-sw[data-on="true"] .liq-thumb { background: var(--accent-foreground, var(--board)); }
 
 @media (prefers-reduced-motion: reduce) {
   .liq-thumb, .liq-pill, .liq-bead, .liq-sw { transition-duration: 160ms; }
+}
+
+/* FieldArray row entry animation */
+@keyframes faIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Sonner toast inline close (×) button alignment */
+[data-sonner-toast] {
+  padding-right: 36px !important;
+}
+
+[data-sonner-toast] [data-close-button] {
+  position: absolute !important;
+  left: auto !important;
+  right: 10px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 6px !important;
+  border: none !important;
+  background: transparent !important;
+  color: var(--muted-foreground) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  opacity: 0.75 !important;
+  transition: opacity 150ms ease, background-color 150ms ease, color 150ms ease !important;
+}
+
+[data-sonner-toast] [data-close-button]:hover {
+  opacity: 1 !important;
+  background: var(--secondary) !important;
+  color: var(--foreground) !important;
 }

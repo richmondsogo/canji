@@ -37,6 +37,15 @@ const KNOWN_TWO_PART_TLDS = new Set([
   'com.my', 'net.my', 'org.my', 'gov.my', 'edu.my'
 ]);
 
+const DANGEROUS_HOST_KEYS = new Set([
+  '__proto__',
+  'constructor',
+  'prototype',
+  'tostring',
+  'valueof',
+  'hasownproperty'
+]);
+
 /**
  * Normalizes hostnames: lowercase, trimmed, no protocol/path/port, no trailing dots, no leading 'www.'.
  */
@@ -54,6 +63,7 @@ export function normalizeHost(hostname) {
   host = host.replace(/\.+$/, '');
   // Strip leading www.
   host = host.replace(/^(?:www\.)+/i, '');
+  if (!host || DANGEROUS_HOST_KEYS.has(host)) return '';
   return host;
 }
 
@@ -91,6 +101,7 @@ export function getSiteMode(settings, hostname) {
   }
 
   for (const key of lookupHosts) {
+    if (!Object.prototype.hasOwnProperty.call(s.perSite, key)) continue;
     const rule = s.perSite[key];
     if (rule && typeof rule === 'object') {
       const validModes = ['ask', 'always', 'never'];
@@ -124,6 +135,7 @@ export function getSiteCurrencies(settings, hostname) {
   }
 
   for (const key of lookupHosts) {
+    if (!Object.prototype.hasOwnProperty.call(s.perSite, key)) continue;
     const rule = s.perSite[key];
     if (rule && typeof rule === 'object') {
       const assumedCurrency = typeof rule.assumedCurrency === 'string' && rule.assumedCurrency
@@ -244,8 +256,24 @@ export function migrateSettings(raw) {
     }
     return {
       ...DEFAULT_SETTINGS,
-      ...raw,
       schemaVersion: CURRENT_SCHEMA_VERSION,
+      targetCurrency: typeof raw.targetCurrency === 'string' && raw.targetCurrency ? raw.targetCurrency : DEFAULT_SETTINGS.targetCurrency,
+      lastUsedTarget: typeof raw.lastUsedTarget === 'string' && raw.lastUsedTarget
+        ? raw.lastUsedTarget
+        : (typeof raw.targetCurrency === 'string' && raw.targetCurrency ? raw.targetCurrency : DEFAULT_SETTINGS.lastUsedTarget),
+      pinnedCurrencies: Array.isArray(raw.pinnedCurrencies)
+        ? raw.pinnedCurrencies.filter((c) => typeof c === 'string' && c.trim()).slice(0, 8)
+        : [...DEFAULT_SETTINGS.pinnedCurrencies],
+      displayMode: ['replace', 'append', 'replace_highlight'].includes(raw.displayMode)
+        ? raw.displayMode
+        : DEFAULT_SETTINGS.displayMode,
+      roundWhole: Boolean(raw.roundWhole),
+      ambiguousDollar: typeof raw.ambiguousDollar === 'string' && raw.ambiguousDollar ? raw.ambiguousDollar : DEFAULT_SETTINGS.ambiguousDollar,
+      showCrypto: Boolean(raw.showCrypto),
+      showInPageBar: raw.showInPageBar !== undefined ? Boolean(raw.showInPageBar) : DEFAULT_SETTINGS.showInPageBar,
+      autoConvertAll: Boolean(raw.autoConvertAll),
+      theme: ['system', 'light', 'dark'].includes(raw.theme) ? raw.theme : DEFAULT_SETTINGS.theme,
+      soundFeedback: Boolean(raw.soundFeedback),
       perSite: migratedPerSite
     };
   }

@@ -3,12 +3,10 @@ import * as React from "react";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createRoot } from "react-dom/client";
 import { Button } from "@/ui/components/ui/button";
-import { Badge } from "@/ui/components/ui/badge";
 import { Separator } from "@/ui/components/ui/separator";
 import { SiteModeControl } from "@/ui/components/SiteModeControl";
 import { CurrencyCombobox } from "@/ui/components/CurrencyCombobox";
 import { CanjiLockup } from "@/ui/components/CanjiLogo";
-import { getEffectiveSiteCaption } from "@/ui/lib/site-rules";
 import {
   ClockCounterClockwise,
   Faders,
@@ -455,12 +453,7 @@ export function PopupApp() {
   const handleSiteModeChange = async (newMode) => {
     if (!hostname || !settings) return;
     if (newMode === "always") {
-      const granted = await requestOriginPermission(origin);
-      if (!granted) {
-        setStatusType("error");
-        setStatusMessage("Canji needs permission to run on this site");
-        return;
-      }
+      void requestOriginPermission(origin || `https://${hostname}/*`);
     }
 
     setSiteModeState(newMode);
@@ -517,12 +510,10 @@ export function PopupApp() {
     return settings?.pinnedCurrencies || ["USD", "EUR", "GBP", "JPY"];
   }, [settings?.pinnedCurrencies]);
 
-  const effectiveCaption = useMemo(() => {
-    const autoConvertAll = Boolean(settings?.autoConvertAll);
-    const norm = normalizeHost(hostname);
-    const rule = settings?.perSite && settings.perSite[norm];
-    return getEffectiveSiteCaption(rule, autoConvertAll);
-  }, [settings, hostname]);
+  const effectiveSiteMode = useMemo(() => {
+    if (siteMode) return siteMode;
+    return settings?.autoConvertAll ? "always" : "ask";
+  }, [siteMode, settings?.autoConvertAll]);
 
   // Rates text display
   const ratesFreshnessText = useMemo(() => {
@@ -541,7 +532,7 @@ export function PopupApp() {
     assumedCurrency.toUpperCase() === pageTargetCurrency.toUpperCase();
 
   return (
-    <div className="w-[360px] max-h-[580px] overflow-y-auto bg-background text-foreground font-sans p-4 flex flex-col gap-3.5 select-none selection:bg-accent/20">
+    <div className="w-[360px] max-h-[580px] overflow-y-auto bg-background text-foreground font-sans p-4 flex flex-col gap-3">
       {/* 1. Header with Canji Lockup + Settings */}
       <header className="flex items-center justify-between">
         <CanjiLockup cut="small" size={20} wordmarkClassName="text-[15px]" />
@@ -573,23 +564,12 @@ export function PopupApp() {
       )}
 
       {/* 3. Main Controls */}
-      <main id="main-controls" className="flex flex-col gap-3.5">
-        {/* Explicit From -> To Converter Block */}
-        <section className="space-y-2" aria-labelledby="target-heading">
-          <div className="flex items-center justify-between">
-            <h2 id="target-heading" className="text-xs font-medium text-muted-foreground">
-              Convert prices on {hostname || "this page"}
-            </h2>
-            {pageTargetCurrency === settings?.targetCurrency && (
-              <Badge
-                variant="secondary"
-                className="text-xs font-mono font-medium text-muted-foreground bg-secondary/80 px-1.5 py-0 rounded border border-border/50"
-              >
-                Default ({settings.targetCurrency})
-              </Badge>
-            )}
-          </div>
-
+      <main id="main-controls" className="flex flex-col gap-3">
+        {/* Framed Converter Well */}
+        <section
+          className="rounded-xl border border-border bg-secondary/25 p-3 space-y-2.5"
+          aria-label="Convert prices on this page"
+        >
           <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
             <div className="flex flex-col gap-1 min-w-0">
               <label
@@ -610,7 +590,7 @@ export function PopupApp() {
                   ariaLabel={`Convert from currency on ${hostname || "this site"}`}
                   align="start"
                   disabled={isRestricted}
-                  className="w-full h-8 px-2.5 text-xs font-mono"
+                  className="w-full h-[34px] rounded-[9px] px-2.5 text-xs font-mono bg-background"
                   popoverClassName="w-[260px]"
                   scrollHeight="h-44"
                   placeholder="Search currencies…"
@@ -644,7 +624,7 @@ export function PopupApp() {
                   align="end"
                   disabled={isRestricted}
                   onPrefetch={loadRates}
-                  className="w-full h-8 px-2.5 font-mono text-xs"
+                  className="w-full h-[34px] rounded-[9px] px-2.5 font-mono text-xs bg-background"
                   popoverClassName="w-[260px]"
                   placeholder="Search currencies…"
                 />
@@ -659,11 +639,11 @@ export function PopupApp() {
             </p>
           )}
 
-          {/* Pinned currencies: balanced 4-column grid with tactile micro-elevation */}
+          {/* Pinned currencies: balanced 4-column grid */}
           <div
             role="group"
             aria-label="Pinned currencies"
-            className="grid grid-cols-4 gap-1.5 pt-0.5"
+            className="grid grid-cols-4 gap-1.5"
           >
             {pinnedCodes.map((code) => {
               const isSelected = pageTargetCurrency === code;
@@ -676,10 +656,10 @@ export function PopupApp() {
                   onFocus={loadRates}
                   disabled={isRestricted}
                   aria-pressed={isSelected}
-                  className={`h-7 w-full px-1 text-xs font-mono rounded-md flex items-center justify-center transition-[background-color,color,box-shadow,border-color,transform] disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background motion-safe:active:scale-[0.98] ${
+                  className={`h-7 w-full px-1 text-xs font-mono rounded-md flex items-center justify-center transition-[background-color,color,box-shadow,border-color,transform] disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background motion-safe:active:scale-[0.98] ${
                     isSelected
-                      ? "bg-background text-foreground font-semibold shadow-xs border border-border/90"
-                      : "bg-secondary/45 text-muted-foreground border border-transparent hover:bg-secondary/80 hover:text-foreground"
+                      ? "bg-[color-mix(in_srgb,var(--accent)_12%,var(--background))] text-foreground font-semibold shadow-xs border border-accent"
+                      : "bg-background text-muted-foreground border border-border hover:text-foreground"
                   }`}
                 >
                   {code}
@@ -687,47 +667,98 @@ export function PopupApp() {
               );
             })}
           </div>
+
+          {/* 4. Primary Action */}
+          <Button
+            id="btn-convert-toggle"
+            type="button"
+            disabled={converting || isRestricted}
+            onClick={handleConvertToggle}
+            className={`w-full h-[34px] rounded-[9px] text-xs font-medium gap-2 transition-[background-color,transform,box-shadow] motion-safe:active:scale-[0.98] ${
+              isPageConverted
+                ? "bg-background text-foreground hover:bg-secondary/80 ring-1 ring-inset ring-border"
+                : "bg-primary text-primary-foreground shadow-pine-button hover:bg-primary/90"
+            }`}
+          >
+            {!converting && !isRestricted && (
+              isPageConverted ? (
+                <ArrowUUpLeft weight="bold" className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              ) : (
+                <ArrowsLeftRight weight="bold" className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              )
+            )}
+            <span>
+              {converting
+                ? "Converting…"
+                : isRestricted
+                ? "Unavailable on this page"
+                : isPageConverted
+                ? "Show original"
+                : `Convert to ${pageTargetCurrency}`}
+            </span>
+          </Button>
         </section>
 
-        {/* 4. Primary Action */}
-        <Button
-          id="btn-convert-toggle"
-          type="button"
-          disabled={converting || isRestricted}
-          onClick={handleConvertToggle}
-          className={`w-full h-10 text-sm font-medium gap-2 transition-[background-color,transform,box-shadow] motion-safe:active:scale-[0.98] ${
-            isPageConverted
-              ? "bg-secondary text-foreground hover:bg-secondary/80 ring-1 ring-inset ring-border"
-              : "bg-primary text-primary-foreground shadow-pine-button hover:bg-primary/90"
-          }`}
-        >
-          {!converting && !isRestricted && (
-            isPageConverted ? (
-              <ArrowUUpLeft weight="bold" className="h-4 w-4 shrink-0" aria-hidden="true" />
-            ) : (
-              <ArrowsLeftRight weight="bold" className="h-4 w-4 shrink-0" aria-hidden="true" />
-            )
-          )}
-          <span>
-            {converting
-              ? "Converting…"
-              : isRestricted
-              ? "Unavailable on this page"
-              : isPageConverted
-              ? "Show original"
-              : `Convert to ${pageTargetCurrency}`}
-          </span>
-        </Button>
+        {/* 5. Single-line site rule row */}
+        {!isRestricted && (
+          <section
+            className="flex items-center justify-between gap-2 px-0.5"
+            aria-label="Site conversion rule"
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <GlobeHemisphereWest
+                weight="duotone"
+                className="size-3.5 text-muted-foreground fill-accent/20 shrink-0"
+                aria-hidden="true"
+              />
+              <span
+                id="current-domain-label"
+                className="font-mono text-xs font-medium text-foreground truncate max-w-[130px]"
+                title={hostname || "Current site"}
+              >
+                {hostname || "Current site"}
+              </span>
+            </div>
 
-        {/* 5. Live Status */}
+            <SiteModeControl
+              value={effectiveSiteMode}
+              onChange={handleSiteModeChange}
+              domain={hostname}
+              size="sm"
+              ariaLabel={`Conversion rule for ${hostname || "current site"}`}
+            />
+          </section>
+        )}
+      </main>
+
+      {/* 6. Footer: Rates Meta (Left) + Live Status (Right) */}
+      <Separator />
+      <footer className="flex items-center justify-between gap-3 text-xs text-muted-foreground -mt-0.5">
+        <div id="rates-meta" className="flex items-center gap-1.5 min-w-0 shrink-0">
+          <ClockCounterClockwise weight="duotone" className="size-3.5 text-muted-foreground fill-accent/20 shrink-0" aria-hidden="true" />
+          <span id="rates-freshness-text" className="truncate tabular-nums">
+            {ratesFreshnessText}
+          </span>
+          {ratesError && (
+            <button
+              id="btn-retry-rates"
+              type="button"
+              onClick={loadRates}
+              className="text-foreground font-medium underline underline-offset-2 ml-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+
         <div
           id="live-status"
           role="status"
           aria-live="polite"
-          className="flex items-center gap-2 text-xs tabular-nums"
+          className="flex items-center justify-end gap-1.5 text-xs tabular-nums min-w-0"
         >
           <span
-            className={`w-2 h-2 rounded-full shrink-0 ${
+            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
               statusType === "converted"
                 ? "bg-accent"
                 : statusType === "converting"
@@ -746,98 +777,10 @@ export function PopupApp() {
                 ? "text-foreground font-medium"
                 : "text-muted-foreground"
             }`}
+            title={statusMessage}
           >
             {statusMessage}
           </span>
-        </div>
-
-        {/* 6. Unified "This site" control group — flat hairline layout */}
-        {!isRestricted && (
-          <section
-            className="border-t border-border/70 pt-3 space-y-2"
-            aria-labelledby="site-heading"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <GlobeHemisphereWest
-                  weight="duotone"
-                  className="size-3.5 text-muted-foreground fill-accent/20"
-                  aria-hidden="true"
-                />
-                <h2 id="site-heading" className="text-xs font-medium text-muted-foreground shrink-0">
-                  On
-                </h2>
-                <span
-                  id="current-domain-label"
-                  className="font-mono text-xs font-medium text-foreground truncate max-w-[180px]"
-                  title={hostname || "Current site"}
-                >
-                  {hostname || "Current site"}
-                </span>
-              </div>
-
-              {siteMode && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleResetSiteMode}
-                  className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-                  title="Reset to default"
-                >
-                  Reset
-                </Button>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-foreground">When visiting</span>
-              <SiteModeControl
-                value={siteMode}
-                onChange={handleSiteModeChange}
-                domain={hostname}
-                size="sm"
-                ariaLabel={`Conversion rule for ${hostname || "current site"}`}
-              />
-            </div>
-
-            {!siteMode && (
-              <div className="text-xs text-muted-foreground text-right">
-                {effectiveCaption}
-              </div>
-            )}
-          </section>
-        )}
-      </main>
-
-      {/* 7. Footer */}
-      <Separator />
-      <footer className="flex items-center justify-between gap-3 text-xs text-muted-foreground -mt-1">
-        <div id="rates-meta" className="flex items-center gap-1.5 min-w-0">
-          <ClockCounterClockwise weight="duotone" className="size-3.5 text-muted-foreground fill-accent/20" aria-hidden="true" />
-          <span id="rates-freshness-text" className="truncate tabular-nums">
-            {ratesFreshnessText}
-          </span>
-          {ratesError && (
-            <button
-              id="btn-retry-rates"
-              type="button"
-              onClick={loadRates}
-              className="text-foreground font-medium underline underline-offset-2 ml-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Retry
-            </button>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          <a
-            id="link-options"
-            href="#"
-            onClick={openOptionsPage}
-            className="text-foreground font-medium hover:underline underline-offset-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Settings
-          </a>
         </div>
       </footer>
     </div>

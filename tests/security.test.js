@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MSG } from '../src/shared/messaging.js';
+import { normalizeHost, migrateSettings, validateSettings, getSiteMode } from '../src/shared/settings.js';
+import { resolveTrustedSenderHost } from '../src/background.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -102,4 +104,42 @@ test('security: MSG.UPDATE_SETTINGS rejects web content scripts and external sen
   const popupResult = handleMessage({ type: MSG.UPDATE_SETTINGS, payload: { targetCurrency: 'GBP' } }, popupSender);
   assert.equal(popupResult.success, true);
   assert.equal(popupResult.settings.targetCurrency, 'GBP');
+});
+
+test('security: resolveTrustedSenderHost binds tab messages to sender.tab.url and prevents cross-origin hostname spoofing', () => {
+  // 1. Content script on evil.test attempting to spoof amazon.com in payload.hostname
+  const compromisedTabSender = {
+    tab: { id: 42, url: 'https://www.evil.test/checkout' }
+  };
+  const resolved = resolveTrustedSenderHost(compromisedTabSender, 'amazon.com');
+  assert.equal(resolved, 'evil.test', 'Must use sender.tab.url hostname and ignore spoofed payload.hostname');
+
+  // 2. Internal extension page without tab URL falls back to normalized payload hostname
+  const internalSender = {
+    url: 'chrome-extension://abcdef/popup/popup.html'
+  };
+  assert.equal(resolveTrustedSenderHost(internalSender, 'https://WWW.Shop.de/items'), 'shop.de');
+});
+
+test('security: normalizeHost and migrateSettings prevent prototype pollution and strip unvalidated v3 fields', () => {
+  for (const protoKey of ['__proto__', 'constructor', 'prototype', 'toString', 'valueOf', 'hasOwnProperty']) {
+    assert.equal(normalizeHost(protoKey), '', `normalizeHost must reject dangerous key ${protoKey}`);
+    assert.equal(normalizeHost(`https://${protoKey}/path`), '', `normalizeHost must reject URL host ${protoKey}`);
+  }
+
+  const maliciousV3 = JSON.parse(
+    '{"schemaVersion":3,"targetCurrency":"EUR","theme":"<script>alert(1)</script>","displayMode":"injected","pollutedProp":"pwned","perSite":{"__proto__":{"mode":"always"},"constructor":{"mode":"never"},"ebay.com":{"mode":"always","assumedCurrency":"USD","extraField":"bad"}}}'
+  );
+  const sanitized = validateSettings(maliciousV3);
+
+  assert.equal(sanitized.schemaVersion, 3);
+  assert.equal(sanitized.targetCurrency, 'EUR');
+  assert.equal(sanitized.theme, 'system', 'Invalid theme enum must fall back to safe default');
+  assert.equal(sanitized.displayMode, 'replace', 'Invalid displayMode enum must fall back to safe default');
+  assert.equal(sanitized.pollutedProp, undefined, 'Arbitrary top-level properties must be stripped on v3 validation');
+  assert.equal(Object.prototype.hasOwnProperty.call(sanitized.perSite, '__proto__'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(sanitized.perSite, 'constructor'), false);
+  assert.equal(({}).mode, undefined, 'Object.prototype must not be polluted');
+  assert.deepEqual(sanitized.perSite['ebay.com'], { mode: 'always', assumedCurrency: 'USD' });
+  assert.deepEqual(getSiteMode(sanitized, 'constructor'), { mode: 'ask', source: 'default', matchedKey: null });
 });

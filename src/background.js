@@ -131,10 +131,24 @@ function extractNormalizedHost(rawUrl) {
   if (!rawUrl) return '';
   try {
     const u = new URL(rawUrl);
-    return u.hostname.replace(/^www\./, '').toLowerCase();
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+    return normalizeHost(u.hostname);
   } catch {
     return '';
   }
+}
+
+/**
+ * Resolves the trusted hostname for messages that originate from a browser tab.
+ * When sender.tab.url is present, it always takes precedence over any untrusted
+ * payload.hostname so a compromised page cannot mutate another domain's site rule.
+ */
+export function resolveTrustedSenderHost(sender, fallbackHostname) {
+  const tabHost = extractNormalizedHost(sender?.tab?.url);
+  if (tabHost) {
+    return tabHost;
+  }
+  return normalizeHost(fallbackHostname);
 }
 
 async function sendTabMessageWithRetry(tabId, message, maxAttempts = 4) {
@@ -333,9 +347,13 @@ if (api && api.runtime && api.runtime.onMessage) {
         sendResponse({ success: false, error: 'Unauthorized: Settings cannot be modified by content scripts' });
         return false;
       }
-      settingsManager.updateSettings(message.payload || {})
+      const payload = message.payload || {};
+      settingsManager.updateSettings(payload)
         .then(updated => {
           buildMenus();
+          if (payload.perSite !== undefined || payload.autoConvertAll !== undefined || payload.targetCurrency !== undefined) {
+            void syncOpenTabsWithSettings(updated);
+          }
           sendResponse({ success: true, settings: updated });
         })
         .catch(err => sendResponse({ success: false, error: err.message }));
@@ -344,7 +362,7 @@ if (api && api.runtime && api.runtime.onMessage) {
 
     // Ask-mode offer prompt: user clicked [Always on this site]
     if (message.type === MSG.ACCEPT_ALWAYS_SITE) {
-      const host = normalizeHost(message.payload?.hostname || extractNormalizedHost(sender?.tab?.url));
+      const host = resolveTrustedSenderHost(sender, message.payload?.hostname);
       if (!host) {
         sendResponse({ success: false, error: 'Invalid hostname' });
         return false;
@@ -363,7 +381,7 @@ if (api && api.runtime && api.runtime.onMessage) {
 
     // Ask-mode offer prompt: user clicked [×] to dismiss offer for this session
     if (message.type === MSG.DISMISS_OFFER) {
-      const host = normalizeHost(message.payload?.hostname || extractNormalizedHost(sender?.tab?.url));
+      const host = resolveTrustedSenderHost(sender, message.payload?.hostname);
       (async () => {
         if (host) {
           await ensureDismissedOffersLoaded();
@@ -377,7 +395,7 @@ if (api && api.runtime && api.runtime.onMessage) {
 
     // Ask-mode offer eligibility check from content script
     if (message.type === MSG.CHECK_OFFER_ELIGIBILITY) {
-      const host = normalizeHost(message.payload?.hostname || extractNormalizedHost(sender?.tab?.url));
+      const host = resolveTrustedSenderHost(sender, message.payload?.hostname);
       (async () => {
         await ensureDismissedOffersLoaded();
         const dismissed = Boolean(host && dismissedOfferHosts.has(host));
@@ -415,6 +433,41 @@ async function evaluateTabForAutoAction(tabId, rawUrl) {
   } catch (err) {
     console.error('[Canji] Auto-convert/offer failed on tab:', tabId, err);
   }
+}
+
+async function syncOpenTabsWithSettings(settings) {
+  if (!api || !api.tabs || !api.tabs.query || !settings) return;
+  try {
+    const tabs = await new Promise((resolve) => {
+      try {
+        const p = api.tabs.query({});
+        if (p && typeof p.then === 'function') {
+          p.then(resolve).catch(() => resolve([]));
+        } else {
+          api.tabs.query({}, (res) => resolve(res || []));
+        }
+      } catch {
+        resolve([]);
+      }
+    });
+
+    for (const tab of tabs) {
+      if (!tab || !tab.id || !tab.url || !tab.url.startsWith('http')) continue;
+      try {
+        const url = new URL(tab.url);
+        const { mode } = getSiteMode(settings, url.hostname);
+        if (mode === 'always') {
+          const { targetCurrency } = getSiteCurrencies(settings, url.hostname);
+          void convertPageOnTab(tab.id, targetCurrency, tab.url);
+        } else if (mode === 'never') {
+          const currentStatus = tabStatusMap.get(tab.id);
+          if (currentStatus && currentStatus.isConverted) {
+            void revertPageOnTab(tab.id);
+          }
+        }
+      } catch {}
+    }
+  } catch {}
 }
 
 // tabs.onUpdated auto-convert ('always') & Ask-Mode offer prompt ('ask')

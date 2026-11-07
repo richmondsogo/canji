@@ -189,19 +189,19 @@ export function Gallery() {
             <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold tracking-tight">1. Typography Specimen</h2>
-                <Badge variant="outline" className="font-mono text-xs">Familjen Grotesk + Fragment Mono</Badge>
+                <Badge variant="outline" className="font-mono text-xs">Native UI Sans + Tabular Mono</Badge>
               </div>
               <p className="text-sm text-muted-foreground">
-                Familjen Grotesk for UI structure and text (400, 500, 600, 700); Fragment Mono for rates, hostnames, and financial figures.
+                Native UI Sans for UI structure and text (400, 500, 600, 700); Tabular Mono for rates, hostnames, and financial figures.
               </p>
             </div>
             <Separator />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Familjen Grotesk */}
+              {/* Native UI Sans */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                  Familjen Grotesk (UI Font)
+                  Main Font (ui-sans-serif)
                 </h3>
                 <div className="space-y-3 bg-secondary/40 p-4 rounded-lg border border-border">
                   <div>
@@ -231,10 +231,10 @@ export function Gallery() {
                 </div>
               </div>
 
-              {/* Fragment Mono */}
+              {/* Native Tabular Mono */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                  Fragment Mono (Data & Rates Font)
+                  Mono Font (ui-monospace)
                 </h3>
                 <div className="space-y-3 bg-secondary/40 p-4 rounded-lg border border-border">
                   <div>

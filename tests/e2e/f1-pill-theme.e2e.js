@@ -138,7 +138,7 @@ test('F2: popup keeps its behavioral contract and renders no text under 12px', a
       await popup.waitForSelector('#btn-convert-toggle');
       await popup.waitForTimeout(600);
 
-      for (const id of ['btn-open-options', 'main-controls', 'from-display', 'picker-to-btn', 'btn-convert-toggle', 'live-status', 'rates-meta', 'rates-freshness-text', 'link-options']) {
+      for (const id of ['btn-open-options', 'main-controls', 'from-display', 'picker-to-btn', 'btn-convert-toggle', 'live-status', 'rates-meta', 'rates-freshness-text']) {
         assert.ok(await popup.locator(`#${id}`).count(), `popup must keep #${id}`);
       }
 

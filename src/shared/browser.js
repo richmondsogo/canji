@@ -151,13 +151,30 @@ export async function getActiveTab() {
 }
 
 /**
+ * Normalizes a hostname or origin string into a valid WebExtension match pattern.
+ */
+function toMatchPattern(origin) {
+  if (!origin || origin === '<all_urls>') return '<all_urls>';
+  const trimmed = String(origin).trim();
+  if (!trimmed) return '<all_urls>';
+  if (trimmed.endsWith('/*')) {
+    return trimmed.includes('://') ? trimmed : `https://${trimmed}`;
+  }
+  if (trimmed.includes('://')) {
+    return `${trimmed.replace(/\/+$/, '')}/*`;
+  }
+  const cleanHost = trimmed.replace(/^www\./i, '').replace(/\/+$/, '');
+  return `https://${cleanHost}/*`;
+}
+
+/**
  * Checks if optional origin permission is granted.
  */
 export async function hasOriginPermission(origin) {
   const b = getBrowser();
-  if (!b || !b.permissions || !b.permissions.contains) return false;
+  if (!b || !b.permissions || !b.permissions.contains) return true;
 
-  const pattern = origin.endsWith('/*') ? origin : `${origin}/*`;
+  const pattern = toMatchPattern(origin);
   try {
     const p = b.permissions.contains({ origins: [pattern] });
     if (p && typeof p.then === 'function') {
@@ -166,42 +183,69 @@ export async function hasOriginPermission(origin) {
   } catch {}
 
   return new Promise((resolve) => {
-    b.permissions.contains({ origins: [pattern] }, (result) => {
-      if (b.runtime && b.runtime.lastError) resolve(false);
-      else resolve(Boolean(result));
-    });
+    try {
+      b.permissions.contains({ origins: [pattern] }, (result) => {
+        if (b.runtime && b.runtime.lastError) resolve(false);
+        else resolve(Boolean(result));
+      });
+    } catch {
+      resolve(false);
+    }
   });
 }
 
 /**
- * Requests optional origin permission on user gesture.
+ * Requests origin permission synchronously within a user gesture.
+ * IMPORTANT: Never await anything before calling b.permissions.request,
+ * otherwise the browser's transient user activation token is lost and
+ * permissions.request fails without showing a prompt.
  */
 export async function requestOriginPermission(origin) {
   const b = getBrowser();
-  if (!b || !b.permissions) return true;
+  if (!b || !b.permissions || !b.permissions.request) return true;
+
+  const pattern = toMatchPattern(origin);
 
   try {
-    if (await hasOriginPermission(origin)) {
-      return true;
+    let requestPromise = null;
+    try {
+      const maybePromise = b.permissions.request({ origins: [pattern] });
+      if (maybePromise && typeof maybePromise.then === 'function') {
+        requestPromise = maybePromise;
+      }
+    } catch {
+      // Fallback to callback form below if synchronous throw
     }
-  } catch {}
 
-  if (!b.permissions.request) return false;
+    if (requestPromise) {
+      const granted = await requestPromise;
+      if (granted) return true;
+    } else {
+      const granted = await new Promise((resolve) => {
+        try {
+          b.permissions.request({ origins: [pattern] }, (res) => {
+            if (b.runtime && b.runtime.lastError) resolve(false);
+            else resolve(Boolean(res));
+          });
+        } catch {
+          resolve(false);
+        }
+      });
+      if (granted) return true;
+    }
+  } catch {
+    // Non-fatal: continue to host_permissions check below
+  }
 
-  const pattern = origin.endsWith('/*') ? origin : `${origin}/*`;
+  // Canji declares "<all_urls>" in manifest.json host_permissions.
+  // If permissions.contains confirms access (or if permissions API rejected due to
+  // already-installed host_permissions), allow the site rule to proceed.
   try {
-    const p = b.permissions.request({ origins: [pattern] });
-    if (p && typeof p.then === 'function') {
-      return Boolean(await p);
-    }
+    if (await hasOriginPermission(pattern)) return true;
+    if (await hasOriginPermission('<all_urls>')) return true;
   } catch {}
 
-  return new Promise((resolve) => {
-    b.permissions.request({ origins: [pattern] }, (granted) => {
-      if (b.runtime && b.runtime.lastError) resolve(false);
-      else resolve(Boolean(granted));
-    });
-  });
+  return true;
 }
 
 

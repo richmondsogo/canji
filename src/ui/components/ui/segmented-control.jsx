@@ -18,10 +18,10 @@ const CELL = {
 };
 
 const SEG_DEFAULT =
-  "px-3 py-[7px] text-center text-[13px] font-medium leading-[18px] tracking-[-0.01em] whitespace-nowrap inline-flex items-center justify-center gap-1.5";
+  "px-3 py-[5px] text-center text-xs font-medium leading-[16px] tracking-[-0.01em] whitespace-nowrap inline-flex items-center justify-center gap-1 min-w-[58px]";
 
 const SEG_SM =
-  "px-2.5 py-[5px] text-center text-xs font-medium leading-[16px] tracking-[-0.01em] whitespace-nowrap inline-flex items-center justify-center gap-1";
+  "px-3 py-[5px] text-center text-xs font-medium leading-[16px] tracking-[-0.01em] whitespace-nowrap inline-flex items-center justify-center gap-1 min-w-[58px]";
 
 export function SegmentedControl({
   options,
@@ -117,7 +117,11 @@ export function SegmentedControl({
       id={id}
       role="radiogroup"
       aria-label={label}
-      className={`relative inline-block select-none rounded-[9px] border border-border bg-secondary/75 p-[3px] shadow-[inset_0_1px_2px_rgba(25,24,21,0.06)] dark:border-border dark:bg-secondary/90 dark:shadow-[inset_0_1px_2px_rgba(0,0,0,0.45)] ${className}`}
+      style={{
+        backgroundColor: "var(--seg-track, var(--secondary))",
+        borderColor: "var(--seg-border, var(--border))",
+      }}
+      className={`relative inline-block select-none rounded-[9px] border p-[3px] shadow-[inset_0_1px_2px_rgba(20,33,27,0.06)] dark:shadow-[inset_0_1px_2px_rgba(0,0,0,0.45)] ${className}`}
     >
       <div
         className="relative grid"
@@ -142,10 +146,15 @@ export function SegmentedControl({
 
         <motion.div
           aria-hidden="true"
-          className={`pointer-events-none absolute inset-y-0 left-0 overflow-hidden rounded-[6px] bg-primary shadow-[0_1px_2px_rgba(25,24,21,0.24)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.5)] transition-opacity duration-150 ${
+          className={`pointer-events-none absolute inset-y-0 left-0 overflow-hidden rounded-[6px] transition-opacity duration-150 ${
             hasSelection ? "opacity-100" : "opacity-0"
           }`}
-          style={{ width: `${100 / count}%`, x: thumbX }}
+          style={{
+            width: `${100 / count}%`,
+            x: thumbX,
+            backgroundColor: "var(--seg-thumb, var(--primary))",
+            boxShadow: "var(--seg-thumb-shadow, 0 1px 2px rgba(20, 33, 27, 0.24))",
+          }}
           initial={false}
         >
           <motion.div
@@ -163,7 +172,8 @@ export function SegmentedControl({
               {options.map((option) => (
                 <span
                   key={option.value}
-                  className={`${segClass} text-primary-foreground`}
+                  style={{ color: "var(--seg-thumb-foreground, var(--primary-foreground))" }}
+                  className={segClass}
                 >
                   {option.icon}
                   <span>{option.label}</span>
