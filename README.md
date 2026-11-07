@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="canji-kit/canji-symbol-feature.svg" width="84" height="84" alt="Canji Logo" />
+<img src="src/icons/icon128.png" width="84" height="84" alt="Canji Logo" />
 
 # Canji
 
