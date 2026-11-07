@@ -68,3 +68,12 @@ errors          0
 notices         0
 warnings        0
 ```
+
+---
+
+## 3. Provenance & Land Record
+- **Pull Request**: [PR #27](https://github.com/richmondsogo/canji/pull/27)
+- **First Commit SHA**: `f86969a`
+- **Last Commit SHA**: `f86969a`
+- **Merge Commit SHA**: `b51570e`
+
